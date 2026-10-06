@@ -1,11 +1,20 @@
 import SwiftUI
 
 enum SpaceTab: String, CaseIterable, Identifiable {
-    case apps = "按软件"
-    case personal = "个人文件"
-    case system = "系统"
-    case folders = "按文件夹"
+    case apps
+    case personal
+    case system
+    case folders
     var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .apps: tr("按软件", "By app")
+        case .personal: tr("个人文件", "Personal files")
+        case .system: tr("系统", "System")
+        case .folders: tr("按文件夹", "Folders")
+        }
+    }
 
     var buckets: Set<Bucket> {
         switch self {
@@ -31,7 +40,7 @@ struct SpaceView: View {
                 if let r = space.report {
                     DiskMap(report: r, rescan: { Task { await space.scan() } }, scanning: space.scanning)
                     Picker("", selection: $tab) {
-                        ForEach(SpaceTab.allCases) { Text($0.rawValue).tag($0) }
+                        ForEach(SpaceTab.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
@@ -48,8 +57,8 @@ struct SpaceView: View {
             .padding(28)
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .navigationTitle("空间分析")
-        .searchable(text: $search, placement: .toolbar, prompt: "搜索软件或文件夹")
+        .navigationTitle(tr("空间分析", "Space"))
+        .searchable(text: $search, placement: .toolbar, prompt: tr("搜索软件或文件夹", "Search apps or folders"))
         .task { if space.report == nil { await space.scan() } }
         .onChange(of: tab) { showAll = false }
     }
@@ -57,11 +66,11 @@ struct SpaceView: View {
     private var scanningPlaceholder: some View {
         VStack(spacing: 16) {
             IconTile(symbol: "chart.pie.fill", gradient: Bucket.apps.gradient, size: 64)
-            Text("正在把整块硬盘过一遍…").font(.rounded(22))
-            Text("大概一分钟。会看每个文件夹，把软件本体和它散落在资源库里的数据合到一起算。")
+            Text(tr("正在把整块硬盘过一遍…", "Going through the whole disk…")).font(.rounded(22))
+            Text(tr("大概一分钟。会看每个文件夹，把软件本体和它散落在资源库里的数据合到一起算。", "About a minute. Every folder is checked, and each app bundle is combined with its data scattered across the Library."))
                 .foregroundStyle(.secondary).multilineTextAlignment(.center).lineLimit(3)
             ProgressView().controlSize(.small)
-            Text("已扫描 \(space.scannedFiles.formatted()) 个文件").monospacedDigit().font(.callout)
+            Text(tr("已扫描 \(space.scannedFiles.formatted()) 个文件", "\(space.scannedFiles.formatted()) files scanned")).monospacedDigit().font(.callout)
             Text(space.currentPath).font(.caption).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.middle)
                 .frame(maxWidth: 480)
         }
@@ -79,7 +88,7 @@ struct SpaceView: View {
         let maxSize = max(all.first?.total ?? 1, 1)
 
         if tab == .apps {
-            Label("每个软件 = 应用本体 + 它在 ~/Library 里的沙盒容器、应用支持、缓存等全部数据。点开看具体在哪。", systemImage: "info.circle")
+            Label(tr("每个软件 = 应用本体 + 它在 ~/Library 里的沙盒容器、应用支持、缓存等全部数据。点开看具体在哪。", "Each app = app bundle + all its data in ~/Library: sandbox containers, Application Support, caches and more. Expand to see where."), systemImage: "info.circle")
                 .font(.callout).foregroundStyle(.secondary)
         }
         if all.isEmpty {
@@ -94,7 +103,7 @@ struct SpaceView: View {
                 }
                 if all.count > shown.count {
                     Divider()
-                    Button("显示其余 \(all.count - shown.count) 项（共 \(formatBytes(all.dropFirst(shown.count).reduce(0) { $0 + $1.total }))）") {
+                    Button(tr("显示其余 \(all.count - shown.count) 项（共 \(formatBytes(all.dropFirst(shown.count).reduce(0) { $0 + $1.total }))）", "Show \(all.count - shown.count) more (\(formatBytes(all.dropFirst(shown.count).reduce(0) { $0 + $1.total })) total)")) {
                         showAll = true
                     }
                     .buttonStyle(.link)
@@ -118,20 +127,20 @@ struct DiskMap: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("硬盘里都是什么").font(.headline).foregroundStyle(.secondary)
+                    Text(tr("硬盘里都是什么", "What’s on your disk")).font(.headline).foregroundStyle(.secondary)
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(formatBytes(report.container.total - report.container.free))
                             .font(.rounded(40, .heavy)).monospacedDigit()
-                        Text("已用 / 共 \(formatBytes(report.container.total))").foregroundStyle(.secondary)
+                        Text(tr("已用 / 共 \(formatBytes(report.container.total))", "used of \(formatBytes(report.container.total))")).foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 4) {
                     Button(action: rescan) {
-                        if scanning { ProgressView().controlSize(.small) } else { Label("重新分析", systemImage: "arrow.clockwise") }
+                        if scanning { ProgressView().controlSize(.small) } else { Label(tr("重新分析", "Rescan"), systemImage: "arrow.clockwise") }
                     }
                     .disabled(scanning)
-                    Text("\(report.date.formatted(date: .omitted, time: .shortened)) · \(report.scannedFiles.formatted()) 个文件")
+                    Text(tr("\(report.date.formatted(date: .omitted, time: .shortened)) · \(report.scannedFiles.formatted()) 个文件", "\(report.date.formatted(date: .omitted, time: .shortened)) · \(report.scannedFiles.formatted()) files"))
                         .font(.caption).foregroundStyle(.tertiary)
                 }
             }
@@ -247,7 +256,7 @@ struct PartRow: View {
                     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: p)])
                 } label: { Image(systemName: "magnifyingglass") }
                 .buttonStyle(.borderless)
-                .help("在访达中显示")
+                .help(tr("在访达中显示", "Show in Finder"))
             } else {
                 Color.clear.frame(width: 16)
             }
@@ -279,11 +288,11 @@ struct FolderBrowser: View {
             HStack {
                 Text(formatBytes(node.size)).font(.rounded(24)).monospacedDigit()
                 if let owner = report.owner(of: node) {
-                    Text("属于「\(owner)」").foregroundStyle(.secondary)
+                    Text(tr("属于「\(owner)」", "Belongs to “\(owner)”")).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if node !== report.root {
-                    Button("在访达中显示") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)]) }
+                    Button(tr("在访达中显示", "Show in Finder")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)]) }
                 }
             }
             LazyVStack(spacing: 0) {
@@ -296,14 +305,14 @@ struct FolderBrowser: View {
                 if node.smallSize > 0 {
                     HStack(spacing: 12) {
                         Image(systemName: "square.stack.3d.up.fill").foregroundStyle(.secondary).frame(width: 26)
-                        Text("\(node.smallCount) 个小文件和小文件夹").foregroundStyle(.secondary)
+                        Text(tr("\(node.smallCount) 个小文件和小文件夹", "\(node.smallCount) small files and folders")).foregroundStyle(.secondary)
                         Spacer()
                         Text(formatBytes(node.smallSize)).monospacedDigit().foregroundStyle(.secondary)
                     }
                     .padding(.horizontal, 14).padding(.vertical, 10)
                 }
                 if node.unreadable {
-                    Label("macOS 不让读这个文件夹", systemImage: "lock.fill").foregroundStyle(.secondary).padding(12)
+                    Label(tr("macOS 不让读这个文件夹", "macOS won’t allow reading this folder"), systemImage: "lock.fill").foregroundStyle(.secondary).padding(12)
                 }
             }
             .padding(6)
@@ -333,7 +342,7 @@ struct FolderRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(node.name).lineLimit(1).truncationMode(.middle)
                 if let owner { Text(owner).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
-                else if node.unreadable { Text("无法读取").font(.caption).foregroundStyle(.tertiary) }
+                else if node.unreadable { Text(tr("无法读取", "Unreadable")).font(.caption).foregroundStyle(.tertiary) }
             }
             Spacer(minLength: 12)
             Capsule().fill(Color.primary.opacity(0.08)).frame(width: 140, height: 6)
@@ -351,8 +360,8 @@ struct FolderRow: View {
         .onTapGesture(perform: open)
         .onHover { hover = $0 }
         .contextMenu {
-            Button("在访达中显示") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)]) }
-            Button("拷贝路径") {
+            Button(tr("在访达中显示", "Show in Finder")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)]) }
+            Button(tr("拷贝路径", "Copy path")) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(node.path, forType: .string)
             }

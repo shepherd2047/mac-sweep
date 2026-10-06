@@ -9,23 +9,23 @@ enum Bucket: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .apps: "软件"
-        case .personal: "个人文件"
-        case .system: "系统数据"
-        case .macos: "macOS 本身"
-        case .hidden: "读不到的部分"
-        case .free: "可用"
+        case .apps: tr("软件", "Apps")
+        case .personal: tr("个人文件", "Personal files")
+        case .system: tr("系统数据", "System data")
+        case .macos: tr("macOS 本身", "macOS itself")
+        case .hidden: tr("读不到的部分", "Unreadable")
+        case .free: tr("可用", "Free")
         }
     }
 
     var blurb: String {
         switch self {
-        case .apps: "应用本体，加上它散落在资源库里的数据、缓存、沙盒容器，合在一起算"
-        case .personal: "桌面、文稿、下载、照片、iCloud 云盘的本地副本、废纸篓"
-        case .system: "系统下载的资源（Siri、翻译、字体）、临时文件、睡眠镜像、系统数据库"
-        case .macos: "系统本体、启动数据、恢复系统、虚拟内存，只读或由系统管理，不能删"
-        case .hidden: "Spotlight 索引、文件版本历史、APFS 快照、可清除空间等，只有系统能读"
-        case .free: "还能用的空间"
+        case .apps: tr("应用本体，加上它散落在资源库里的数据、缓存、沙盒容器，合在一起算", "App bundles plus their data, caches and sandbox containers scattered across the Library")
+        case .personal: tr("桌面、文稿、下载、照片、iCloud 云盘的本地副本、废纸篓", "Desktop, Documents, Downloads, Photos, local iCloud Drive copies, Trash")
+        case .system: tr("系统下载的资源（Siri、翻译、字体）、临时文件、睡眠镜像、系统数据库", "System-downloaded assets (Siri, Translation, fonts), temporary files, sleep image, system databases")
+        case .macos: tr("系统本体、启动数据、恢复系统、虚拟内存，只读或由系统管理，不能删", "The system itself, boot data, Recovery, virtual memory; read-only or system-managed, can't be deleted")
+        case .hidden: tr("Spotlight 索引、文件版本历史、APFS 快照、可清除空间等，只有系统能读", "Spotlight index, file version history, APFS snapshots, purgeable space and more; only the system can read these")
+        case .free: tr("还能用的空间", "Space still available")
         }
     }
 
@@ -222,74 +222,74 @@ struct Attributor {
         // Parents before the helper apps nested inside them.
         let apps = inv.appURLByID.filter { !$0.value.path.hasPrefix("/System/") }
             .sorted { $0.value.path.count < $1.value.path.count }
-        for (lid, url) in apps { claim(url.path, app(lid), "应用本体") }
+        for (lid, url) in apps { claim(url.path, app(lid), tr("应用本体", "App bundle")) }
     }
 
     private mutating func claimSpecials() {
         let L = home + "/Library"
         let appRules: [(String, String, String)] = [
-            (L + "/Messages", "com.apple.mobilesms", "聊天记录和附件"),
-            (L + "/Mail", "com.apple.mail", "邮件和附件"),
-            (L + "/Safari", "com.apple.safari", "书签、历史、阅读列表"),
-            (L + "/Calendars", "com.apple.ical", "日历数据"),
-            (home + "/Pictures/Photos Library.photoslibrary", "com.apple.photos", "照片图库"),
-            (home + "/Music/Music", "com.apple.music", "音乐资料库"),
-            (L + "/Application Support/AddressBook", "com.apple.addressbook", "通讯录"),
+            (L + "/Messages", "com.apple.mobilesms", tr("聊天记录和附件", "Chat history and attachments")),
+            (L + "/Mail", "com.apple.mail", tr("邮件和附件", "Mail and attachments")),
+            (L + "/Safari", "com.apple.safari", tr("书签、历史、阅读列表", "Bookmarks, history, Reading List")),
+            (L + "/Calendars", "com.apple.ical", tr("日历数据", "Calendar data")),
+            (home + "/Pictures/Photos Library.photoslibrary", "com.apple.photos", tr("照片图库", "Photos library")),
+            (home + "/Music/Music", "com.apple.music", tr("音乐资料库", "Music library")),
+            (L + "/Application Support/AddressBook", "com.apple.addressbook", tr("通讯录", "Contacts")),
         ]
         for (path, lid, label) in appRules where inv.appNameByID[lid] != nil { claim(path, app(lid), label) }
 
         let xcode = inv.appNameByID["com.apple.dt.xcode"] != nil ? app("com.apple.dt.xcode")
-            : pseudo("xcode", "Xcode 与模拟器", .apps, symbol: "hammer.fill")
-        for (path, label) in [(L + "/Developer/CoreSimulator", "模拟器设备和数据"),
-                              (L + "/Developer/Xcode", "编译缓存、设备支持文件"),
-                              (L + "/Developer", "开发者数据"),
-                              ("/Library/Developer", "命令行工具、模拟器镜像"),
-                              ("/System/Library/AssetsV2/com_apple_MobileAsset_iOSSimulatorRuntime", "iOS 模拟器系统"),
-                              ("/System/Library/AssetsV2/com_apple_MobileAsset_AppleDeveloperDocumentation", "开发者文档")] {
+            : pseudo("xcode", tr("Xcode 与模拟器", "Xcode and simulators"), .apps, symbol: "hammer.fill")
+        for (path, label) in [(L + "/Developer/CoreSimulator", tr("模拟器设备和数据", "Simulator devices and data")),
+                              (L + "/Developer/Xcode", tr("编译缓存、设备支持文件", "Build caches, device support files")),
+                              (L + "/Developer", tr("开发者数据", "Developer data")),
+                              ("/Library/Developer", tr("命令行工具、模拟器镜像", "Command line tools, simulator images")),
+                              ("/System/Library/AssetsV2/com_apple_MobileAsset_iOSSimulatorRuntime", tr("iOS 模拟器系统", "iOS simulator runtimes")),
+                              ("/System/Library/AssetsV2/com_apple_MobileAsset_AppleDeveloperDocumentation", tr("开发者文档", "Developer documentation"))] {
             claim(path, xcode, label)
         }
         for c in root.node(at: "/System/Library/AssetsV2")?.children ?? [] where c.name.contains("SimulatorRuntime") {
-            claim(c.path, xcode, "模拟器系统")
+            claim(c.path, xcode, tr("模拟器系统", "Simulator runtime"))
         }
 
-        let backups = pseudo("backup", "iPhone / iPad 备份", .personal, symbol: "iphone",
-                             note: "用访达备份 iPhone 留下的；在 访达 › 你的手机 › 管理备份 里删旧的")
-        claim(L + "/Application Support/MobileSync/Backup", backups, "设备备份")
+        let backups = pseudo("backup", tr("iPhone / iPad 备份", "iPhone / iPad backups"), .personal, symbol: "iphone",
+                             note: tr("用访达备份 iPhone 留下的；在 访达 › 你的手机 › 管理备份 里删旧的", "Left by Finder iPhone backups; delete old ones in Finder › your phone › Manage Backups"))
+        claim(L + "/Application Support/MobileSync/Backup", backups, tr("设备备份", "Device backups"))
 
-        let brew = pseudo("brew", "Homebrew", .apps, symbol: "mug.fill", note: "brew 装的命令行软件；brew list 看看哪些不用了")
+        let brew = pseudo("brew", "Homebrew", .apps, symbol: "mug.fill", note: tr("brew 装的命令行软件；brew list 看看哪些不用了", "Command line software installed by brew; run brew list to see what you no longer use"))
         for c in root.node(at: "/opt/homebrew/Cellar")?.children ?? [] { claim(c.path, brew, c.name) }
-        for c in root.node(at: "/opt/homebrew/Caskroom")?.children ?? [] { claim(c.path, brew, c.name + "（cask）") }
-        claim("/opt/homebrew", brew, "Homebrew 其他文件")
-        claim("/usr/local/Homebrew", brew, "Homebrew（Intel）")
-        claim("/usr/local/Cellar", brew, "Homebrew 软件（Intel）")
+        for c in root.node(at: "/opt/homebrew/Caskroom")?.children ?? [] { claim(c.path, brew, c.name + tr("（cask）", " (cask)")) }
+        claim("/opt/homebrew", brew, tr("Homebrew 其他文件", "Other Homebrew files"))
+        claim("/usr/local/Homebrew", brew, tr("Homebrew（Intel）", "Homebrew (Intel)"))
+        claim("/usr/local/Cellar", brew, tr("Homebrew 软件（Intel）", "Homebrew packages (Intel)"))
     }
 
     private mutating func claimLibrary() {
         let L = home + "/Library"
         let locations: [(String, String)] = [
-            (L + "/Containers", "沙盒数据"), (L + "/Group Containers", "共享数据"),
-            (L + "/Application Support", "应用支持数据"), (L + "/Caches", "缓存"),
-            (L + "/HTTPStorages", "网络缓存"), (L + "/WebKit", "网页数据"),
-            (L + "/Saved Application State", "窗口状态"), (L + "/Logs", "日志"),
-            (L + "/Application Scripts", "脚本"), (L + "/Preferences", "设置"), (L + "/Cookies", "Cookie"),
-            ("/Library/Application Support", "全局支持数据"), ("/Library/Caches", "全局缓存"), ("/Library/Logs", "全局日志"),
+            (L + "/Containers", tr("沙盒数据", "Sandbox data")), (L + "/Group Containers", tr("共享数据", "Group container")),
+            (L + "/Application Support", tr("应用支持数据", "Application Support")), (L + "/Caches", tr("缓存", "Caches")),
+            (L + "/HTTPStorages", tr("网络缓存", "HTTP storage")), (L + "/WebKit", tr("网页数据", "Web data")),
+            (L + "/Saved Application State", tr("窗口状态", "Saved window state")), (L + "/Logs", tr("日志", "Logs")),
+            (L + "/Application Scripts", tr("脚本", "Scripts")), (L + "/Preferences", tr("设置", "Preferences")), (L + "/Cookies", "Cookie"),
+            ("/Library/Application Support", tr("全局支持数据", "Global Application Support")), ("/Library/Caches", tr("全局缓存", "Global caches")), ("/Library/Logs", tr("全局日志", "Global logs")),
         ]
-        let apple = pseudo("apple-services", "macOS 自带服务的数据", .system, symbol: "applelogo",
-                           note: "照片分析、Siri、Spotlight 等系统后台服务在资源库里的数据")
-        let misc = pseudo("misc-apps", "其他零散软件数据", .apps, symbol: "square.grid.3x3.fill",
-                          note: "很多小软件各自留下的一点点数据")
+        let apple = pseudo("apple-services", tr("macOS 自带服务的数据", "Built-in macOS services data"), .system, symbol: "applelogo",
+                           note: tr("照片分析、Siri、Spotlight 等系统后台服务在资源库里的数据", "Data kept in the Library by background services like photo analysis, Siri and Spotlight"))
+        let misc = pseudo("misc-apps", tr("其他零散软件数据", "Other small app data"), .apps, symbol: "square.grid.3x3.fill",
+                          note: tr("很多小软件各自留下的一点点数据", "Small bits of data left by many minor apps"))
         for (dir, label) in locations {
             for c in root.node(at: dir)?.children ?? [] {
                 if let lid = appID(forKey: c.name) {
                     claim(c.path, app(lid), label)
                 } else if c.name.lowercased().hasPrefix("com.apple.") || c.name.hasPrefix("group.com.apple.") {
-                    claim(c.path, apple, label + "：" + c.name)
+                    claim(c.path, apple, label + tr("：", ": ") + c.name)
                 } else if c.size >= 50 << 20 {
                     let id = pseudo("unknown:" + c.name.lowercased(), c.name, .apps, symbol: "questionmark.app.dashed",
-                                    note: "找不到对应的已安装软件，可能已经卸载了；看看「卸载残留」")
+                                    note: tr("找不到对应的已安装软件，可能已经卸载了；看看「卸载残留」", "No matching installed app, it may have been uninstalled; check Leftovers"))
                     claim(c.path, id, label)
                 } else {
-                    claim(c.path, misc, label + "：" + c.name)
+                    claim(c.path, misc, label + tr("：", ": ") + c.name)
                 }
             }
         }
@@ -301,22 +301,22 @@ struct Attributor {
             ".bun": ("Node.js / npm", "shippingbox.fill"), ".pnpm-store": ("Node.js / npm", "shippingbox.fill"),
             ".cargo": ("Rust", "gearshape.2.fill"), ".rustup": ("Rust", "gearshape.2.fill"),
             ".gradle": ("Java / Gradle", "cup.and.saucer.fill"), ".m2": ("Java / Gradle", "cup.and.saucer.fill"),
-            ".cache": ("命令行工具缓存", "archivebox.fill"), ".local": ("命令行工具", "terminal.fill"),
+            ".cache": (tr("命令行工具缓存", "Command line tool caches"), "archivebox.fill"), ".local": (tr("命令行工具", "Command line tools"), "terminal.fill"),
             ".conda": ("Python / Conda", "chevron.left.forwardslash.chevron.right"),
             ".pyenv": ("Python / Conda", "chevron.left.forwardslash.chevron.right"),
             ".ollama": ("Ollama", "cpu.fill"), ".lmstudio": ("LM Studio", "cpu.fill"), ".docker": ("Docker", "shippingbox.fill"),
         ]
         let personal: [String: (String, String)] = [
-            "Desktop": ("桌面", "menubar.dock.rectangle"), "Documents": ("文稿", "doc.fill"),
-            "Downloads": ("下载", "arrow.down.circle.fill"), "Pictures": ("图片", "photo.fill"),
-            "Movies": ("影片", "film.fill"), "Music": ("音乐", "music.note"), ".Trash": ("废纸篓", "trash.fill"),
+            "Desktop": (tr("桌面", "Desktop"), "menubar.dock.rectangle"), "Documents": (tr("文稿", "Documents"), "doc.fill"),
+            "Downloads": (tr("下载", "Downloads"), "arrow.down.circle.fill"), "Pictures": (tr("图片", "Pictures"), "photo.fill"),
+            "Movies": (tr("影片", "Movies"), "film.fill"), "Music": (tr("音乐", "Music"), "music.note"), ".Trash": (tr("废纸篓", "Trash"), "trash.fill"),
         ]
 
-        let icloud = pseudo("icloud", "iCloud 云盘", .personal, symbol: "icloud.fill",
-                            note: "下载到本机的 iCloud 文件；在访达里右键「移除下载项」可以只留在云端")
-        claim(home + "/Library/Mobile Documents", icloud, "本地副本")
+        let icloud = pseudo("icloud", tr("iCloud 云盘", "iCloud Drive"), .personal, symbol: "icloud.fill",
+                            note: tr("下载到本机的 iCloud 文件；在访达里右键「移除下载项」可以只留在云端", "iCloud files downloaded to this Mac; right-click in Finder and choose Remove Download to keep them only in the cloud"))
+        claim(home + "/Library/Mobile Documents", icloud, tr("本地副本", "Local copies"))
 
-        let cli = pseudo("cli", "其他命令行工具数据", .apps, symbol: "terminal.fill")
+        let cli = pseudo("cli", tr("其他命令行工具数据", "Other command line tool data"), .apps, symbol: "terminal.fill")
         for c in root.node(at: home)?.children ?? [] {
             if let (name, symbol) = personal[c.name] {
                 claim(c.path, pseudo("home:" + c.name, name, .personal, symbol: symbol), name)
@@ -335,24 +335,24 @@ struct Attributor {
             }
         }
 
-        let lib = pseudo("library-rest", "资源库里的其他数据", .system, symbol: "books.vertical.fill",
-                         note: "~/Library 里不属于某个软件的部分：键盘词库、字体、邮件下载等")
+        let lib = pseudo("library-rest", tr("资源库里的其他数据", "Other Library data"), .system, symbol: "books.vertical.fill",
+                         note: tr("~/Library 里不属于某个软件的部分：键盘词库、字体、邮件下载等", "Parts of ~/Library not tied to an app: keyboard dictionaries, fonts, Mail downloads and more"))
         for c in root.node(at: home + "/Library")?.children ?? [] { claim(c.path, lib, c.name) }
-        claim(home + "/Library", lib, "零散文件")
-        claim(home, pseudo("home:files", "个人文件夹里的零散文件", .personal, symbol: "doc.on.doc.fill"), "~")
+        claim(home + "/Library", lib, tr("零散文件", "Loose files"))
+        claim(home, pseudo("home:files", tr("个人文件夹里的零散文件", "Loose files in your home folder"), .personal, symbol: "doc.on.doc.fill"), "~")
         for c in root.node(at: "/Users")?.children ?? [] {
-            claim(c.path, pseudo("users", "共享文件夹和其他用户", .personal, symbol: "person.2.fill"), c.name)
+            claim(c.path, pseudo("users", tr("共享文件夹和其他用户", "Shared folder and other users"), .personal, symbol: "person.2.fill"), c.name)
         }
     }
 
     private mutating func claimSystem() {
         let assetNames: [(String, String)] = [
-            ("Siri", "Siri"), ("Translation", "翻译"), ("Font", "字体"), ("Speech", "语音识别"),
-            ("TextToSpeech", "朗读语音"), ("Linguistic", "语言数据"), ("Photos", "照片智能功能"),
-            ("Dictionary", "词典"), ("Keyboard", "键盘"), ("GenerativeModels", "Apple 智能模型"), ("MLModels", "机器学习模型"),
+            ("Siri", "Siri"), ("Translation", tr("翻译", "Translation")), ("Font", tr("字体", "Fonts")), ("Speech", tr("语音识别", "Speech recognition")),
+            ("TextToSpeech", tr("朗读语音", "Text to speech voices")), ("Linguistic", tr("语言数据", "Language data")), ("Photos", tr("照片智能功能", "Photos intelligence")),
+            ("Dictionary", tr("词典", "Dictionaries")), ("Keyboard", tr("键盘", "Keyboard")), ("GenerativeModels", tr("Apple 智能模型", "Apple Intelligence models")), ("MLModels", tr("机器学习模型", "Machine learning models")),
         ]
-        let assets = pseudo("assets", "系统下载的资源", .system, symbol: "arrow.down.app.fill",
-                            note: "Siri、翻译、字体、Apple 智能等按需下载的组件；关掉对应功能后系统会慢慢收回")
+        let assets = pseudo("assets", tr("系统下载的资源", "System-downloaded assets"), .system, symbol: "arrow.down.app.fill",
+                            note: tr("Siri、翻译、字体、Apple 智能等按需下载的组件；关掉对应功能后系统会慢慢收回", "On-demand components for Siri, Translation, fonts, Apple Intelligence and more; the system reclaims them gradually after you turn the feature off"))
         for c in root.node(at: "/System/Library/AssetsV2")?.children ?? [] {
             let label = assetNames.first { c.name.contains($0.0) }?.1
                 ?? c.name.replacingOccurrences(of: "com_apple_MobileAsset_", with: "")
@@ -360,14 +360,14 @@ struct Attributor {
         }
 
         let rules: [(String, String, String, String, String)] = [
-            ("/private/var/folders", "tmp", "临时文件和缓存", "clock.arrow.circlepath", "系统和各软件的临时文件，重启或长时间不用会自动清掉一部分"),
-            ("/private/var/vm", "vm", "睡眠镜像和交换文件", "memorychip.fill", "内存不够时写到硬盘上的部分，以及合盖睡眠时的内存镜像；重启后会变小"),
-            ("/private/var/db", "db", "系统数据库", "cylinder.split.1x2.fill", "Spotlight、诊断、软件更新等系统数据库"),
-            ("/Library", "library", "全局资源库", "books.vertical.fill", "给所有用户用的驱动、插件、字体、音频素材等"),
-            ("/MobileSoftwareUpdate", "update", "系统更新文件", "arrow.triangle.2.circlepath", "下载好还没装、或装完没清的系统更新"),
-            ("/.PreviousSystemInformation", "update", "系统更新文件", "arrow.triangle.2.circlepath", ""),
-            ("/usr", "usr", "命令行底层文件", "terminal.fill", ""),
-            ("/private", "private", "其他系统文件", "gearshape.2.fill", ""),
+            ("/private/var/folders", "tmp", tr("临时文件和缓存", "Temporary files and caches"), "clock.arrow.circlepath", tr("系统和各软件的临时文件，重启或长时间不用会自动清掉一部分", "Temporary files from the system and apps; some are cleared on restart or after long idle periods")),
+            ("/private/var/vm", "vm", tr("睡眠镜像和交换文件", "Sleep image and swap files"), "memorychip.fill", tr("内存不够时写到硬盘上的部分，以及合盖睡眠时的内存镜像；重启后会变小", "Memory written to disk when RAM runs low, plus the memory image saved during sleep; shrinks after restart")),
+            ("/private/var/db", "db", tr("系统数据库", "System databases"), "cylinder.split.1x2.fill", tr("Spotlight、诊断、软件更新等系统数据库", "System databases for Spotlight, diagnostics, Software Update and more")),
+            ("/Library", "library", tr("全局资源库", "Global Library"), "books.vertical.fill", tr("给所有用户用的驱动、插件、字体、音频素材等", "Drivers, plug-ins, fonts, audio content and more shared by all users")),
+            ("/MobileSoftwareUpdate", "update", tr("系统更新文件", "System update files"), "arrow.triangle.2.circlepath", tr("下载好还没装、或装完没清的系统更新", "System updates downloaded but not installed, or installed but not cleaned up")),
+            ("/.PreviousSystemInformation", "update", tr("系统更新文件", "System update files"), "arrow.triangle.2.circlepath", ""),
+            ("/usr", "usr", tr("命令行底层文件", "Low-level command line files"), "terminal.fill", ""),
+            ("/private", "private", tr("其他系统文件", "Other system files"), "gearshape.2.fill", ""),
         ]
         for (path, id, name, symbol, note) in rules {
             let o = pseudo("sys:" + id, name, .system, symbol: symbol, note: note)
@@ -376,28 +376,28 @@ struct Attributor {
             }
             claim(path, o, path)
         }
-        let rest = pseudo("sys:rest", "其他", .system, symbol: "ellipsis.circle.fill")
+        let rest = pseudo("sys:rest", tr("其他", "Other"), .system, symbol: "ellipsis.circle.fill")
         for c in root.children { claim(c.path, rest, c.path) }
     }
 
     private mutating func claimVolumes(_ c: ContainerUsage) {
         let names: [String: (String, String, String)] = [
-            "System": ("macOS 系统本体", "applelogo", "只读、加密签名的系统卷，不能删"),
-            "Preboot": ("启动和更新数据", "power", "开机需要的文件和系统更新用的组件"),
-            "Recovery": ("恢复系统", "lifepreserver.fill", "按住电源键进入的恢复模式"),
-            "VM": ("虚拟内存", "memorychip.fill", "内存不够用时暂存在硬盘的内容；开的软件越多越大，重启后变小"),
+            "System": (tr("macOS 系统本体", "macOS system"), "applelogo", tr("只读、加密签名的系统卷，不能删", "Read-only, cryptographically signed system volume; can't be deleted")),
+            "Preboot": (tr("启动和更新数据", "Boot and update data"), "power", tr("开机需要的文件和系统更新用的组件", "Files needed to start up and components used by system updates")),
+            "Recovery": (tr("恢复系统", "Recovery"), "lifepreserver.fill", tr("按住电源键进入的恢复模式", "The recovery mode you enter by holding the power button")),
+            "VM": (tr("虚拟内存", "Virtual memory"), "memorychip.fill", tr("内存不够用时暂存在硬盘的内容；开的软件越多越大，重启后变小", "Content swapped to disk when memory runs low; grows with more open apps, shrinks after restart")),
         ]
         for v in c.volumes where v.role != "Data" {
             let (name, symbol, note) = names[v.role] ?? (v.name, "internaldrive.fill", "")
             let id = "vol:" + v.role + v.name
             owners[id] = Owner(id: id, name: name, bucket: .macos, symbol: symbol, note: note,
-                               parts: [UsagePart(label: "APFS 卷「\(v.name)」", path: nil, size: v.used)])
+                               parts: [UsagePart(label: tr("APFS 卷「\(v.name)」", "APFS volume “\(v.name)”"), path: nil, size: v.used)])
         }
         let unseen = c.used(role: "Data") - claims.values.reduce(0, +)
         if unseen > 0 {
-            owners["hidden"] = Owner(id: "hidden", name: "macOS 不让读的部分", bucket: .hidden, symbol: "eye.slash.fill",
-                                     note: "数据卷里扫不到的部分：Spotlight 索引、文件版本历史、文件系统日志、APFS 快照、可清除空间，以及其他只有 root 能读的文件",
-                                     parts: [UsagePart(label: "数据卷已用 − 扫到的总和", path: nil, size: unseen)])
+            owners["hidden"] = Owner(id: "hidden", name: tr("macOS 不让读的部分", "Parts macOS won't let us read"), bucket: .hidden, symbol: "eye.slash.fill",
+                                     note: tr("数据卷里扫不到的部分：Spotlight 索引、文件版本历史、文件系统日志、APFS 快照、可清除空间，以及其他只有 root 能读的文件", "Parts of the data volume the scan can't see: Spotlight index, file version history, file system journal, APFS snapshots, purgeable space and other root-only files"),
+                                     parts: [UsagePart(label: tr("数据卷已用 − 扫到的总和", "Data volume used − total scanned"), path: nil, size: unseen)])
         }
     }
 }

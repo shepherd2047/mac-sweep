@@ -4,6 +4,15 @@ A native SwiftUI disk cleaner and space analyzer for macOS.
 
 macOS's storage settings show a huge grey "System Data" / "Other" bar and don't explain it. Apps also keep their data apart from the app: an app in `/Applications` may look like 1 GB while it stores 5 GB more across `~/Library/Containers`, `Application Support`, `Caches` and dot folders. MacSweep shows where every gigabyte goes and helps you remove the parts you don't need.
 
+![Space: every GB of the disk attributed to an app, your files, or the system](docs/screenshots/space.png)
+
+<table>
+<tr>
+<td><img src="docs/screenshots/overview.png" alt="Overview"><br><sub><b>Overview.</b> What you can free up, split by category and risk.</sub></td>
+<td><img src="docs/screenshots/leftovers.png" alt="Leftovers"><br><sub><b>Leftovers.</b> Data from apps you deleted months ago, still sitting in ~/Library.</sub></td>
+</tr>
+</table>
+
 Everything MacSweep removes goes to the Trash, so you can get it back until you empty it. Git worktrees and Homebrew packages are removed with `git` and `brew` themselves.
 
 ## Space analysis
@@ -35,6 +44,14 @@ Every item has a risk level:
 - **Careful**: possibly still in use, for example written to in the last 14 days.
 
 **How leftovers are detected.** MacSweep gathers every installed bundle ID: all `.app` bundles Spotlight knows about, including Steam games, plus the helpers, extensions and login items nested inside them. It adds command-line tools from PATH and Homebrew. Only `~/Library` entries that match none of these count as leftovers. An entry matched by name rather than by bundle ID, or one that holds user data, is marked *Review*.
+
+## Language
+
+The UI follows your system language: Chinese if Chinese comes first in your preferred languages, English otherwise. To pick one for a single launch:
+
+```bash
+open -n ~/Applications/MacSweep.app --args -AppleLanguages '(en)'
+```
 
 ## Build
 

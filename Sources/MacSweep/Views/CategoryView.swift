@@ -1,10 +1,16 @@
 import SwiftUI
 
 enum SortKey: String, CaseIterable, Identifiable {
-    case size = "按大小"
-    case age = "按最后使用"
-    case name = "按名称"
+    case size, age, name
     var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .size: tr("按大小", "By size")
+        case .age: tr("按最后使用", "By last use")
+        case .name: tr("按名称", "By name")
+        }
+    }
 }
 
 struct CategoryView: View {
@@ -41,7 +47,7 @@ struct CategoryView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .navigationTitle(category.title)
-        .searchable(text: $search, placement: .toolbar, prompt: "搜索名称或路径")
+        .searchable(text: $search, placement: .toolbar, prompt: tr("搜索名称或路径", "Search name or path"))
     }
 
     private var header: some View {
@@ -59,14 +65,14 @@ struct CategoryView: View {
                     .font(.rounded(30))
                     .foregroundStyle(category.gradient)
                     .monospacedDigit()
-                Text("\(all.count) 项").font(.caption).foregroundStyle(.secondary)
+                Text(tr("\(all.count) 项", "\(all.count) items")).font(.caption).foregroundStyle(.secondary)
             }
         }
     }
 
     private var controls: some View {
         HStack(spacing: 8) {
-            FilterChip(title: "全部", count: all.count, color: .accentColor, on: riskFilter == nil) { riskFilter = nil }
+            FilterChip(title: tr("全部", "All"), count: all.count, color: .accentColor, on: riskFilter == nil) { riskFilter = nil }
             ForEach(Risk.allCases, id: \.self) { r in
                 FilterChip(title: r.title, count: all.filter { $0.risk == r }.count, color: r.color, on: riskFilter == r) {
                     riskFilter = riskFilter == r ? nil : r
@@ -74,19 +80,19 @@ struct CategoryView: View {
             }
             Spacer()
             Menu {
-                Picker("排序", selection: $sort) {
-                    ForEach(SortKey.allCases) { Text($0.rawValue).tag($0) }
+                Picker(tr("排序", "Sort"), selection: $sort) {
+                    ForEach(SortKey.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.inline)
             } label: {
-                Label(sort.rawValue, systemImage: "arrow.up.arrow.down")
+                Label(sort.title, systemImage: "arrow.up.arrow.down")
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
             .padding(.trailing, 6)
-            Button("全选安全项") { store.selectSafe(in: [category]) }
+            Button(tr("全选安全项", "Select Safe")) { store.selectSafe(in: [category]) }
                 .disabled(all.allSatisfy { $0.risk != .safe })
-            Button("全不选") { store.deselect(in: category) }
+            Button(tr("全不选", "Select None")) { store.deselect(in: category) }
         }
     }
 
@@ -95,13 +101,13 @@ struct CategoryView: View {
         if store.scanning.contains(category) {
             VStack(spacing: 12) {
                 ProgressView().controlSize(.large)
-                Text("正在扫描…").foregroundStyle(.secondary)
+                Text(tr("正在扫描…", "Scanning…")).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity).padding(.vertical, 80)
         } else if rows.isEmpty {
-            ContentUnavailableView(search.isEmpty ? "这里很干净" : "没有匹配项",
+            ContentUnavailableView(search.isEmpty ? tr("这里很干净", "All clean here") : tr("没有匹配项", "No matches"),
                                    systemImage: search.isEmpty ? "sparkles" : "magnifyingglass",
-                                   description: Text(search.isEmpty ? "没有找到可清理的项目" : "换个关键词试试"))
+                                   description: Text(search.isEmpty ? tr("没有找到可清理的项目", "Nothing to clean was found") : tr("换个关键词试试", "Try another search")))
                 .padding(.vertical, 60)
         } else {
             let maxSize = max(rows.map(\.size).max() ?? 1, 1)
@@ -201,8 +207,8 @@ struct ItemMenu: View {
     @EnvironmentObject var store: Store
 
     var body: some View {
-        Button("在访达中显示") { store.reveal(item) }
-        Button("拷贝路径") {
+        Button(tr("在访达中显示", "Show in Finder")) { store.reveal(item) }
+        Button(tr("拷贝路径", "Copy Path")) {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(item.paths.map(\.path).joined(separator: "\n"), forType: .string)
         }
@@ -218,15 +224,15 @@ struct FDABanner: View {
                      gradient: LinearGradient(colors: [.orange, .red.opacity(0.85)], startPoint: .top, endPoint: .bottom),
                      size: 36)
             VStack(alignment: .leading, spacing: 3) {
-                Text("需要完全磁盘访问权限").font(.headline)
-                Text("其他软件的 Containers、废纸篓、下载、文稿受 macOS 隐私保护，目前跳过不扫。授权一次永久有效，回到这里会自动重新扫描。")
+                Text(tr("需要完全磁盘访问权限", "Full Disk Access needed")).font(.headline)
+                Text(tr("其他软件的 Containers、废纸篓、下载、文稿受 macOS 隐私保护，目前跳过不扫。授权一次永久有效，回到这里会自动重新扫描。", "Other apps' Containers, the Trash, Downloads and Documents are protected by macOS privacy and are skipped for now. Grant access once and MacSweep rescans when you come back."))
                     .font(.callout).foregroundStyle(.secondary).lineLimit(3)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                Button("打开设置") { store.openFullDiskAccessSettings() }
+                Button(tr("打开设置", "Open Settings")) { store.openFullDiskAccessSettings() }
                     .buttonStyle(.borderedProminent)
-                Button("在访达中显示 MacSweep") {
+                Button(tr("在访达中显示 MacSweep", "Show MacSweep in Finder")) {
                     NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
                 }
                 .buttonStyle(.link).font(.caption)

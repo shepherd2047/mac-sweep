@@ -24,14 +24,14 @@ struct OverviewView: View {
             .padding(.bottom, 70)
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .navigationTitle("总览")
+        .navigationTitle(tr("总览", "Overview"))
     }
 
     private var hero: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(store.isScanning ? "正在扫描…" : "可以释放")
+                    Text(store.isScanning ? tr("正在扫描…", "Scanning…") : tr("可以释放", "You can free up"))
                         .font(.headline).foregroundStyle(.secondary)
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text(formatBytes(grandTotal))
@@ -42,7 +42,7 @@ struct OverviewView: View {
                             .contentTransition(.numericText())
                         if store.isScanning { ProgressView().controlSize(.small) }
                     }
-                    Text("其中 \(formatBytes(safeTotal)) 是「安全」项：缓存、更新残留、已合并的 worktree，删了会自动重建或随时能再下载。")
+                    Text(tr("其中 \(formatBytes(safeTotal)) 是「安全」项：缓存、更新残留、已合并的 worktree，删了会自动重建或随时能再下载。", "\(formatBytes(safeTotal)) of it is Safe: caches, updater leftovers and merged worktrees that rebuild themselves or can be downloaded again."))
                         .font(.callout).foregroundStyle(.secondary).lineLimit(2)
                 }
                 Spacer(minLength: 24)
@@ -50,14 +50,14 @@ struct OverviewView: View {
                     Button {
                         store.selectSafe()
                     } label: {
-                        Label("选中所有安全项", systemImage: "checkmark.seal.fill")
+                        Label(tr("选中所有安全项", "Select All Safe"), systemImage: "checkmark.seal.fill")
                             .padding(.horizontal, 6).padding(.vertical, 3)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .disabled(store.isScanning || safeTotal == 0)
                     if let d = store.lastScan {
-                        Text("上次扫描 \(d.formatted(date: .omitted, time: .shortened))")
+                        Text(tr("上次扫描 \(d.formatted(date: .omitted, time: .shortened))", "Last scan \(d.formatted(date: .omitted, time: .shortened))"))
                             .font(.caption).foregroundStyle(.tertiary)
                     }
                 }
@@ -65,7 +65,7 @@ struct OverviewView: View {
 
             StorageBreakdown()
             Button(action: openSpace) {
-                Label("「其他已用」里到底是什么？按软件看每一 GB 花在哪", systemImage: "chart.pie.fill")
+                Label(tr("「其他已用」里到底是什么？按软件看每一 GB 花在哪", "What is all that \"Other\"? See where every GB goes, app by app"), systemImage: "chart.pie.fill")
             }
             .buttonStyle(.link)
         }
@@ -75,13 +75,13 @@ struct OverviewView: View {
 
     private var tips: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("风险等级").font(.headline)
+            Text(tr("风险等级", "Risk levels")).font(.headline)
             HStack(alignment: .top, spacing: 14) {
-                TipCard(risk: .safe, text: "会自动重建，或随时可以重新下载。")
-                TipCard(risk: .review, text: "可能有你要的数据或设置，看一眼再删。")
-                TipCard(risk: .careful, text: "可能还在用，或有没保存的工作。")
+                TipCard(risk: .safe, text: tr("会自动重建，或随时可以重新下载。", "Rebuilt automatically, or can be downloaded again anytime."))
+                TipCard(risk: .review, text: tr("可能有你要的数据或设置，看一眼再删。", "May hold data or settings you want. Take a look first."))
+                TipCard(risk: .careful, text: tr("可能还在用，或有没保存的工作。", "May still be in use, or hold unsaved work."))
             }
-            Label("所有东西都是移到废纸篓，清倒之前都能找回。", systemImage: "arrow.uturn.backward.circle")
+            Label(tr("所有东西都是移到废纸篓，清倒之前都能找回。", "Everything goes to the Trash and can be restored until you empty it."), systemImage: "arrow.uturn.backward.circle")
                 .font(.callout).foregroundStyle(.secondary)
                 .padding(.top, 4)
         }
@@ -109,11 +109,11 @@ struct StorageBreakdown: View {
             // A grid rather than an HStack: seven fixed-width legends in one row would raise the
             // window's minimum width.
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), alignment: .leading)], alignment: .leading, spacing: 6) {
-                LegendDot(color: AnyShapeStyle(Color.primary.opacity(0.28)), title: "其他已用", value: other)
+                LegendDot(color: AnyShapeStyle(Color.primary.opacity(0.28)), title: tr("其他已用", "Other used"), value: other)
                 ForEach(cleanable, id: \.0) { c, v in
                     LegendDot(color: AnyShapeStyle(c.gradient), title: c.title, value: v)
                 }
-                LegendDot(color: AnyShapeStyle(Color.primary.opacity(0.07)), title: "可用", value: disk.free)
+                LegendDot(color: AnyShapeStyle(Color.primary.opacity(0.07)), title: tr("可用", "Free"), value: disk.free)
             }
             .font(.caption)
         }
@@ -189,9 +189,9 @@ struct CategoryCard: View {
                             }
                         }
                     HStack {
-                        Text("\(store.items(category).count) 项")
+                        Text(tr("\(store.items(category).count) 项", "\(store.items(category).count) items"))
                         Spacer()
-                        Text(safe > 0 ? "安全 \(formatBytes(safe))" : "无安全项")
+                        Text(safe > 0 ? tr("安全 \(formatBytes(safe))", "Safe \(formatBytes(safe))") : tr("无安全项", "Nothing safe"))
                             .foregroundStyle(safe > 0 ? category.tint : Color.secondary)
                     }
                     .font(.caption.weight(.medium)).foregroundStyle(.secondary)
@@ -214,8 +214,8 @@ struct LogView: View {
     var body: some View {
         Group {
             if store.log.isEmpty {
-                ContentUnavailableView("还没有清理记录", systemImage: "list.bullet.rectangle",
-                                       description: Text("清理过的项目会记在这里"))
+                ContentUnavailableView(tr("还没有清理记录", "Nothing cleaned yet"), systemImage: "list.bullet.rectangle",
+                                       description: Text(tr("清理过的项目会记在这里", "Cleaned items show up here")))
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
@@ -250,6 +250,6 @@ struct LogView: View {
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .navigationTitle("清理记录")
+        .navigationTitle(tr("清理记录", "History"))
     }
 }

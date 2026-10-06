@@ -29,7 +29,7 @@ struct MacSweepApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(after: .newItem) {
-                Button("重新扫描") { Task { await store.scan() } }
+                Button(tr("重新扫描", "Rescan")) { Task { await store.scan() } }
                     .keyboardShortcut("r")
                     .disabled(store.isScanning)
             }

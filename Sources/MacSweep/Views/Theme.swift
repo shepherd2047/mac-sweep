@@ -70,9 +70,9 @@ struct ItemIcon: View {
         if item.id.hasPrefix("wt:") { return "arrow.triangle.branch" }
         if item.id.hasPrefix("brew:") { return "mug.fill" }
         if item.title.hasPrefix("node_modules") { return "shippingbox.fill" }
-        if item.title.hasPrefix("日志") { return "doc.text.fill" }
-        if item.title.contains("扩展") { return "puzzlepiece.extension.fill" }
-        if item.title.contains("模型") { return "cpu.fill" }
+        if item.id.contains("/Library/Logs/") { return "doc.text.fill" }
+        if (item.id.contains("/extensions/") || item.title.contains("扩展") || item.title.localizedCaseInsensitiveContains("extension")) { return "puzzlepiece.extension.fill" }
+        if (item.title.contains("模型") || item.title.localizedCaseInsensitiveContains("model")) { return "cpu.fill" }
         if item.paths.first?.pathExtension == "dmg" || item.paths.first?.pathExtension == "pkg" { return "opticaldiscdrive.fill" }
         if ["zip", "rar", "7z"].contains(item.paths.first?.pathExtension ?? "") { return "doc.zipper" }
         switch item.category {

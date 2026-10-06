@@ -34,8 +34,8 @@ struct AppScanner {
             let ref = used ?? installed
             let days = Int(now.timeIntervalSince(ref) / 86400)
             let risk: Risk = days > 180 ? .review : .careful
-            var reason = used == nil ? "没有使用记录，安装于 \(formatAge(installed))" : "最后使用于 \(formatAge(used))"
-            if !data.isEmpty { reason += "；连同 \(data.count) 处 Library 数据一起移除" }
+            var reason = used == nil ? tr("没有使用记录，安装于 \(formatAge(installed))", "Never used; installed \(formatAge(installed))") : tr("最后使用于 \(formatAge(used))", "Last used \(formatAge(used))")
+            if !data.isEmpty { reason += tr("；连同 \(data.count) 处 Library 数据一起移除", "; also removes its data in \(data.count) Library location\(data.count == 1 ? "" : "s")") }
 
             return SweepItem(id: "app:\(app.url.path)", category: .apps, title: app.name,
                              subtitle: FS.tilde(app.url), paths: [app.url] + data,

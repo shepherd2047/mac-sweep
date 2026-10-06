@@ -21,7 +21,7 @@ enum Dump {
             ]
             for (c, items) in results {
                 let total = items.reduce(0) { $0 + $1.size }
-                print("\n== \(c.title)  \(items.count) 项  \(formatBytes(total))")
+                print("\n== \(c.title)  " + tr("\(items.count) 项", "\(items.count) items") + "  \(formatBytes(total))")
                 for i in items {
                     let size = formatBytes(i.size).padding(toLength: 10, withPad: " ", startingAt: 0)
                     let risk = i.risk.title.padding(toLength: 4, withPad: "　", startingAt: 0)

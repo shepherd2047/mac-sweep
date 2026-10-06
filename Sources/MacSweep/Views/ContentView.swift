@@ -20,18 +20,18 @@ struct ContentView: View {
                     .selectionDisabled()
 
                 NavigationLink(value: Pane.overview) {
-                    SidebarRow(title: "总览",
+                    SidebarRow(title: tr("总览", "Overview"),
                                icon: IconTile(symbol: "sparkles",
                                               gradient: LinearGradient(colors: [Color(red: 0.35, green: 0.6, blue: 1), Color(red: 0.6, green: 0.35, blue: 0.95)],
                                                                        startPoint: .top, endPoint: .bottom),
                                               size: 24))
                 }
                 NavigationLink(value: Pane.space) {
-                    SidebarRow(title: "空间分析", icon: IconTile(symbol: "chart.pie.fill", gradient: Bucket.apps.gradient, size: 24),
+                    SidebarRow(title: tr("空间分析", "Space"), icon: IconTile(symbol: "chart.pie.fill", gradient: Bucket.apps.gradient, size: 24),
                                loading: space.scanning)
                 }
 
-                Section("分类") {
+                Section(tr("分类", "Categories")) {
                     ForEach(Category.allCases) { c in
                         NavigationLink(value: Pane.category(c)) {
                             SidebarRow(title: c.title, icon: IconTile(c, size: 24),
@@ -43,7 +43,7 @@ struct ContentView: View {
 
                 Section {
                     NavigationLink(value: Pane.log) {
-                        SidebarRow(title: "清理记录",
+                        SidebarRow(title: tr("清理记录", "History"),
                                    icon: IconTile(symbol: "clock.arrow.circlepath",
                                                   gradient: LinearGradient(colors: [.gray.opacity(0.7), .gray], startPoint: .top, endPoint: .bottom),
                                                   size: 24),
@@ -72,10 +72,10 @@ struct ContentView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { Task { await store.scan() } } label: {
-                    Label("重新扫描", systemImage: "arrow.clockwise")
+                    Label(tr("重新扫描", "Rescan"), systemImage: "arrow.clockwise")
                 }
                 .disabled(store.isScanning || store.cleaning)
-                .help("重新扫描 (⌘R)")
+                .help(tr("重新扫描 (⌘R)", "Rescan (⌘R)"))
             }
         }
         .task { if store.lastScan == nil { await store.scan() } }
@@ -131,8 +131,8 @@ struct DiskSummary: View {
             .frame(width: 40, height: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Macintosh HD").font(.callout.weight(.semibold))
-                Text("可用 \(formatBytes(disk.free))").font(.caption).foregroundStyle(.secondary)
-                Text("共 \(formatBytes(disk.total))").font(.caption2).foregroundStyle(.tertiary)
+                Text(tr("可用 \(formatBytes(disk.free))", "\(formatBytes(disk.free)) free")).font(.caption).foregroundStyle(.secondary)
+                Text(tr("共 \(formatBytes(disk.total))", "of \(formatBytes(disk.total))")).font(.caption2).foregroundStyle(.tertiary)
             }
         }
     }
@@ -149,21 +149,21 @@ struct TrashFooter: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 1) {
-                Text("废纸篓").font(.callout.weight(.medium))
-                Text(store.trashSize.map { $0 == 0 ? "空的" : formatBytes($0) } ?? "需要完全磁盘访问权限")
+                Text(tr("废纸篓", "Trash")).font(.callout.weight(.medium))
+                Text(store.trashSize.map { $0 == 0 ? tr("空的", "Empty") : formatBytes($0) } ?? tr("需要完全磁盘访问权限", "Needs Full Disk Access"))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Button("清倒") { confirm = true }
+            Button(tr("清倒", "Empty")) { confirm = true }
                 .controlSize(.small)
                 .disabled(store.trashSize == 0)
         }
         .padding(10)
         .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .confirmationDialog("永久删除废纸篓里的所有项目？", isPresented: $confirm) {
-            Button("清倒废纸篓", role: .destructive) { store.emptyTrash() }
+        .confirmationDialog(tr("永久删除废纸篓里的所有项目？", "Permanently erase everything in the Trash?"), isPresented: $confirm) {
+            Button(tr("清倒废纸篓", "Empty Trash"), role: .destructive) { store.emptyTrash() }
         } message: {
-            Text("这一步无法撤销。之前通过 MacSweep 移到废纸篓的东西也会一起永久删除。")
+            Text(tr("这一步无法撤销。之前通过 MacSweep 移到废纸篓的东西也会一起永久删除。", "This can't be undone. Anything MacSweep moved to the Trash is erased too."))
         }
     }
 }
@@ -178,26 +178,26 @@ struct CleanBar: View {
             if store.cleaning {
                 ProgressView(value: Double(store.progress.done), total: Double(max(store.progress.total, 1)))
                     .frame(width: 160)
-                Text("正在清理 \(store.progress.done)/\(store.progress.total)…").monospacedDigit()
+                Text(tr("正在清理 \(store.progress.done)/\(store.progress.total)…", "Cleaning \(store.progress.done)/\(store.progress.total)…")).monospacedDigit()
             } else {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("已选 \(store.selected.count) 项").font(.callout.weight(.semibold))
+                    Text(tr("已选 \(store.selected.count) 项", "\(store.selected.count) selected")).font(.callout.weight(.semibold))
                     let risky = store.selectedItems.filter { $0.risk == .careful }.count
                     if risky > 0 {
-                        Label("含 \(risky) 项「谨慎」", systemImage: "exclamationmark.triangle.fill")
+                        Label(tr("含 \(risky) 项「谨慎」", "\(risky) marked Careful"), systemImage: "exclamationmark.triangle.fill")
                             .font(.caption).foregroundStyle(.red)
                     } else {
-                        Text("全部可从废纸篓找回").font(.caption).foregroundStyle(.secondary)
+                        Text(tr("全部可从废纸篓找回", "All recoverable from the Trash")).font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 Text(formatBytes(store.selectedSize))
                     .font(.rounded(22, .bold)).monospacedDigit()
                     .contentTransition(.numericText())
-                Button("取消") { store.selected = [] }
+                Button(tr("取消", "Cancel")) { store.selected = [] }
                     .buttonStyle(.borderless)
             }
             Button { confirm = true } label: {
-                Label("清理", systemImage: "trash.fill")
+                Label(tr("清理", "Clean"), systemImage: "trash.fill")
                     .font(.body.weight(.semibold))
                     .padding(.horizontal, 10).padding(.vertical, 4)
             }
@@ -211,10 +211,10 @@ struct CleanBar: View {
         .background(.regularMaterial, in: Capsule())
         .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08)))
         .shadow(color: .black.opacity(0.18), radius: 18, y: 6)
-        .confirmationDialog("清理 \(store.selected.count) 项（\(formatBytes(store.selectedSize))）？", isPresented: $confirm) {
-            Button("移到废纸篓", role: .destructive) { Task { await store.cleanSelected() } }
+        .confirmationDialog(tr("清理 \(store.selected.count) 项（\(formatBytes(store.selectedSize))）？", "Clean \(store.selected.count) items (\(formatBytes(store.selectedSize)))?"), isPresented: $confirm) {
+            Button(tr("移到废纸篓", "Move to Trash"), role: .destructive) { Task { await store.cleanSelected() } }
         } message: {
-            Text("文件会移到废纸篓，清倒前都能恢复。git worktree 和 brew 包会用 git / brew 自己的命令移除。App Store 安装的软件可能会要求输入管理员密码。")
+            Text(tr("文件会移到废纸篓，清倒前都能恢复。git worktree 和 brew 包会用 git / brew 自己的命令移除。App Store 安装的软件可能会要求输入管理员密码。", "Files go to the Trash and can be restored until you empty it. Git worktrees and brew packages are removed with git / brew. App Store apps may ask for your admin password."))
         }
     }
 }

@@ -75,15 +75,15 @@ struct OrphanScanner {
             let bundleLike = Self.isBundleLike(g.display)
             let days = g.newest.map { Int(Date().timeIntervalSince($0) / 86400) } ?? 9999
             var risk: Risk = g.hasData ? .review : .safe
-            var reasons: [String] = [bundleLike ? "找不到 bundle ID 对应的已安装软件" : "按名称找不到对应的软件或命令行工具"]
-            if g.hasData { reasons.append("含用户数据（设置、存档等），确认不要了再删") }
+            var reasons: [String] = [bundleLike ? tr("找不到 bundle ID 对应的已安装软件", "No installed app matches this bundle ID") : tr("按名称找不到对应的软件或命令行工具", "No app or CLI tool matches this name")]
+            if g.hasData { reasons.append(tr("含用户数据（设置、存档等），确认不要了再删", "Contains user data (settings, saves, etc.); delete only if you're sure")) }
             if !bundleLike { risk = max(risk, .review) }
-            if let v = bundleLike ? inv.sameVendorApp(g.display) : nil { reasons.append("同厂商的「\(v)」还装着"); risk = max(risk, .review) }
-            if days < 14 { reasons.append("\(days) 天内还有写入，可能仍有程序在用"); risk = .careful }
-            let places = Set(g.paths.map { $0.deletingLastPathComponent().lastPathComponent }).sorted().joined(separator: "、")
+            if let v = bundleLike ? inv.sameVendorApp(g.display) : nil { reasons.append(tr("同厂商的「\(v)」还装着", "\"\(v)\" from the same vendor is still installed")); risk = max(risk, .review) }
+            if days < 14 { reasons.append(tr("\(days) 天内还有写入，可能仍有程序在用", days == 0 ? "Written to today; may still be in use" : "Written to \(days) day\(days == 1 ? "" : "s") ago; may still be in use")); risk = .careful }
+            let places = Set(g.paths.map { $0.deletingLastPathComponent().lastPathComponent }).sorted().joined(separator: tr("、", ", "))
             return SweepItem(id: "orphan:\(gk)", category: .orphans, title: g.display,
-                             subtitle: "\(g.paths.count) 处：\(places)", paths: g.paths,
-                             lastUsed: g.newest, risk: risk, reason: reasons.joined(separator: "；"))
+                             subtitle: tr("\(g.paths.count) 处：\(places)", "\(g.paths.count) location\(g.paths.count == 1 ? "" : "s"): \(places)"), paths: g.paths,
+                             lastUsed: g.newest, risk: risk, reason: reasons.joined(separator: tr("；", "; ")))
         }
         return await FS.sized(items, min: 256 * 1024)
     }

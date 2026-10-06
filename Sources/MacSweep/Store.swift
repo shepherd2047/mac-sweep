@@ -116,15 +116,15 @@ final class Store: ObservableObject {
 
         refreshDisk()
         let gained = disk.free - before
-        log.insert(LogEntry(ok: true, title: "本次清理完成",
-                            detail: "处理 \(chosen.count) 项。移到废纸篓的空间要清倒废纸篓后才会释放；目前可用空间变化 \(formatBytes(gained))",
+        log.insert(LogEntry(ok: true, title: tr("本次清理完成", "Cleanup finished"),
+                            detail: tr("处理 \(chosen.count) 项。移到废纸篓的空间要清倒废纸篓后才会释放；目前可用空间变化 \(formatBytes(gained))", "Processed \(chosen.count) items. Space moved to Trash is freed only after emptying the Trash; free space changed by \(formatBytes(gained))"),
                             freed: 0), at: 0)
         cleaning = false
     }
 
     func emptyTrash() {
         if Cleaner.emptyTrash() {
-            log.insert(LogEntry(ok: true, title: "已清倒废纸篓", detail: "", freed: trashSize ?? 0), at: 0)
+            log.insert(LogEntry(ok: true, title: tr("已清倒废纸篓", "Emptied Trash"), detail: "", freed: trashSize ?? 0), at: 0)
         }
         refreshDisk()
     }
