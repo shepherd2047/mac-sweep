@@ -6,7 +6,9 @@ struct MacSweepApp: App {
     @StateObject private var store = Store()
 
     init() {
-        if CommandLine.arguments.contains("--dump") { Dump.run() }
+        let args = CommandLine.arguments
+        if args.contains("--dump") { Dump.run() }
+        if let i = args.firstIndex(of: "--check-access"), i + 1 < args.count { AccessCheck.run(out: args[i + 1]) }
         // Lets `swift run` show a normal window with a Dock icon.
         NSApplication.shared.setActivationPolicy(.regular)
     }

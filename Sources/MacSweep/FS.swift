@@ -76,9 +76,18 @@ enum FS {
     }
 
     /// Full Disk Access is needed to read other apps' Containers and the Trash.
+    /// Probes locations only readable with it; the first one that exists decides. (The user
+    /// TCC.db is not a reliable probe: newer macOS versions moved it.)
     static func hasFullDiskAccess() -> Bool {
-        let tcc = library.appendingPathComponent("Application Support/com.apple.TCC/TCC.db")
-        return (try? FileHandle(forReadingFrom: tcc))?.closeFile() != nil
+        let probes = ["Library/Containers/com.apple.Safari", "Library/Safari", "Library/Mail",
+                      "Library/Application Support/com.apple.TCC/TCC.db"]
+        for rel in probes {
+            let url = url(rel)
+            guard fm.fileExists(atPath: url.path) else { continue }
+            if isDir(url) { return (try? fm.contentsOfDirectory(atPath: url.path)) != nil }
+            return (try? FileHandle(forReadingFrom: url))?.closeFile() != nil
+        }
+        return false
     }
 
     /// Folders macOS asks the user about (TCC). Reading them without Full Disk Access pops a

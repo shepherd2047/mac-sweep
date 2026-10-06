@@ -35,3 +35,32 @@ enum Dump {
         exit(0)
     }
 }
+
+/// `open MacSweep.app --args --check-access <out>`: records which protected locations this
+/// build can read. Must be launched via `open` so TCC attributes access to MacSweep itself
+/// rather than to the terminal that started it.
+enum AccessCheck {
+    static func run(out: String) -> Never {
+        let probes = ["Library/Application Support/com.apple.TCC/TCC.db", ".Trash", "Library/Safari",
+                      "Library/Mail", "Library/Messages", "Library/Containers/com.apple.Safari",
+                      "Library/Containers", "Downloads", "Documents", "Desktop"]
+        var lines = ["bundle: \(Bundle.main.bundlePath)", "hasFullDiskAccess(): \(FS.hasFullDiskAccess())"]
+        for p in probes {
+            let url = FS.url(p)
+            let exists = FS.fm.fileExists(atPath: url.path)
+            var result = "missing"
+            if exists {
+                if FS.isDir(url) {
+                    do { _ = try FS.fm.contentsOfDirectory(atPath: url.path); result = "OK" }
+                    catch { result = "DENIED (\((error as NSError).code))" }
+                } else {
+                    do { let h = try FileHandle(forReadingFrom: url); _ = try h.read(upToCount: 16); try h.close(); result = "OK" }
+                    catch { result = "DENIED (\((error as NSError).code))" }
+                }
+            }
+            lines.append("\(p): \(result)")
+        }
+        try? lines.joined(separator: "\n").write(toFile: out, atomically: true, encoding: .utf8)
+        exit(0)
+    }
+}
