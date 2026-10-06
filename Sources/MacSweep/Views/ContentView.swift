@@ -99,7 +99,7 @@ struct TrashFooter: View {
             Image(systemName: "trash")
             VStack(alignment: .leading, spacing: 1) {
                 Text("废纸篓").font(.callout)
-                Text(store.trashSize.map(formatBytes) ?? "需要完全磁盘访问权限才能读取")
+                Text(store.trashSize.map { $0 == 0 ? "空的" : formatBytes($0) } ?? "需要完全磁盘访问权限才能读取")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
