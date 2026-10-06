@@ -1,30 +1,53 @@
 # MacSweep
 
-原生 SwiftUI 的 macOS 磁盘清理工具。所有删除都是移到废纸篓（可恢复），git worktree 和 Homebrew 包交给 git / brew 自己移除。
+A native SwiftUI disk cleaner and space analyzer for macOS.
 
-## 扫描什么
+macOS's storage settings show a huge grey "System Data" / "Other" bar and don't explain it. Apps also keep their data apart from the app: an app in `/Applications` may look like 1 GB while it stores 5 GB more across `~/Library/Containers`, `Application Support`, `Caches` and dot folders. MacSweep shows where every gigabyte goes and helps you remove the parts you don't need.
 
-| 分类 | 内容 |
+Everything MacSweep removes goes to the Trash, so you can get it back until you empty it. Git worktrees and Homebrew packages are removed with `git` and `brew` themselves.
+
+## Space analysis
+
+MacSweep scans the whole Data volume (about a minute for about 1.2 million files) and gives every folder to exactly one owner:
+
+- **Apps**: each app's total is the app plus all of its data: sandbox containers, group containers, Application Support, caches, web storage, saved state, logs and its dot folder in your home folder. For example, Xcode = app + `/Library/Developer` + simulator runtimes + developer docs, and VS Code = app + `~/.vscode` + `Application Support/Code`. Data that no installed app owns is listed under its own name.
+- **Personal files**: Desktop, Documents, Downloads, Photos, iCloud Drive local copies, iPhone backups, Trash and other folders in your home folder.
+- **System data**: resources macOS downloaded for Siri, translation, fonts and Apple Intelligence; temporary files in `/private/var/folders`; swap and sleep image; system databases; data from built-in macOS services (Maps cache, media analysis, …).
+- **macOS itself**: the sealed System volume, Preboot, Recovery and VM. These are APFS volumes, read from `diskutil apfs list`.
+- **Unreadable**: whatever even Full Disk Access cannot list, such as the Spotlight index, document revisions, fseventsd, APFS snapshots and purgeable space. MacSweep shows this as a number with an explanation, so the bar still adds up.
+
+Click any row to see the exact folders behind it and reveal them in Finder. The **Folders** tab lets you drill down through the disk sorted by size, and shows which app or category each folder belongs to.
+
+## Cleanup categories
+
+| Category | What it finds |
 |---|---|
-| 缓存与日志 | `~/Library/Caches`、`~/.cache`、`~/Library/Logs`、npm/pnpm/bun/cargo/go/gradle/NuGet 缓存、更新器残留的 `*.ShipIt` 安装包 |
-| 卸载残留 | `~/Library` 下 11 个位置（Application Support、Containers、Group Containers、Caches、Preferences、HTTPStorages、WebKit、Saved Application State 等）里找不到所属软件的条目，按软件聚合 |
-| 很少用的软件 | `/Applications`、`~/Applications` 里的第三方软件，按最后使用时间排序；卸载时连同它在 `~/Library` 的数据一起移除 |
-| 大件可再下载 | macOS 航拍壁纸视频、Claude 虚拟机镜像、HuggingFace/Whisper/LM Studio/Ollama 模型、Docker 磁盘、下载文件夹里的安装包 |
-| 开发垃圾 | 已合并且干净的 git worktree、编辑器扩展旧版本、Xcode DerivedData 等、Homebrew 缓存和叶子包、60 天没动过的 `node_modules` |
+| Caches & logs | `~/Library/Caches`, `~/.cache`, `~/Library/Logs`, npm/pnpm/bun/cargo/go/gradle/NuGet caches, leftover `*.ShipIt` updater downloads |
+| Uninstall leftovers | Entries in 11 `~/Library` locations (Application Support, Containers, Group Containers, Caches, Preferences, HTTPStorages, WebKit, Saved Application State, …) that no installed app owns, grouped per app |
+| Rarely used apps | Third-party apps in `/Applications` and `~/Applications`, sorted by last use; uninstalling also removes their `~/Library` data |
+| Large re-downloadables | macOS aerial wallpaper videos, Claude VM bundles, HuggingFace/Whisper/LM Studio/Ollama models, Docker disks, installers in Downloads |
+| Developer junk | Merged and clean git worktrees, old editor extension versions, Xcode DerivedData and friends, Homebrew cache and leaf packages, `node_modules` untouched for 60+ days |
 
-「卸载残留」的判断方式：收集所有已安装软件的 bundle ID（Spotlight 找到的全部 .app，包括 Steam 游戏，以及软件内的辅助程序、扩展、登录项），加上 PATH 里的命令行工具和 brew 包名，对不上的才算残留。按名称而不是 bundle ID 匹配的条目、含用户数据的条目，一律标成「需确认」；最近 14 天还有写入的标成「谨慎」。
+Every item has a risk level:
 
-## 构建
+- **Safe**: gets rebuilt on its own or can be downloaded again.
+- **Review**: may hold data or settings you care about.
+- **Careful**: possibly still in use, for example written to in the last 14 days.
+
+**How leftovers are detected.** MacSweep gathers every installed bundle ID: all `.app` bundles Spotlight knows about, including Steam games, plus the helpers, extensions and login items nested inside them. It adds command-line tools from PATH and Homebrew. Only `~/Library` entries that match none of these count as leftovers. An entry matched by name rather than by bundle ID, or one that holds user data, is marked *Review*.
+
+## Build
+
+Needs only the Command Line Tools (Swift 6); Xcode is not required. macOS 14 or later.
 
 ```bash
-./scripts/build-app.sh --install   # 构建 dist/MacSweep.app 并装到 ~/Applications
-.build/debug/MacSweep --dump       # 不开窗口，直接在终端打印扫描结果（需先 swift build）
+./scripts/build-app.sh --install   # build dist/MacSweep.app and copy it to ~/Applications
+swift build && .build/debug/MacSweep --dump   # print all cleanup scan results in the terminal
+open -n ~/Applications/MacSweep.app --args --space /tmp/space.txt   # write the space analysis to a file
 ```
 
-只需要 Command Line Tools（Swift 6），不需要 Xcode。
+## Permissions
 
-## 权限
-
-- **完全磁盘访问权限**：没有它时，MacSweep 会跳过其他软件的 Containers、废纸篓、下载、文稿，免得 macOS 反复弹窗。在「系统设置 › 隐私与安全性 › 完全磁盘访问权限」里打开 MacSweep，回到软件会自动重新扫描。
-- **签名**：`scripts/setup-signing.sh` 会在独立钥匙串 `~/Library/Keychains/macsweep-signing.keychain-db` 里生成一张自签名证书（不碰登录钥匙串），`build-app.sh` 用它签名。签名身份固定，所以授权在重新编译后依然有效；临时签名（ad-hoc）每次编译都会变，macOS 会当成新软件、忘掉授权。
-- **自动化（访达）**：App Store 安装的软件属于 root，普通移动会失败，这时交给访达处理，可能会要求输入管理员密码。
+- **Full Disk Access.** Without it, MacSweep skips other apps' Containers, the Trash, Downloads and Documents, so macOS doesn't keep showing permission prompts. To grant it, enable MacSweep in *System Settings › Privacy & Security › Full Disk Access*. MacSweep rescans automatically when you switch back to it.
+- **Signing.** `scripts/setup-signing.sh` creates a self-signed certificate in a separate keychain (`~/Library/Keychains/macsweep-signing.keychain-db`) and doesn't touch your login keychain. `build-app.sh` signs with that certificate. Because the signing identity stays the same, the permission survives rebuilds. An ad-hoc signature changes with every build, so macOS treats each build as a new app and forgets the grant.
+- **Automation (Finder).** Apps installed from the App Store are owned by root, so a normal move to the Trash fails. MacSweep then asks Finder to delete them, which may prompt for your admin password.

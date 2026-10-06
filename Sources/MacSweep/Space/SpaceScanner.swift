@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-/// One folder (or big file) on the Data volume. Paths are as the user sees them ("/Users/m"),
+/// One folder (or big file) on the Data volume. Paths are as the user sees them ("/Users/you"),
 /// not the "/System/Volumes/Data" mount they are read through.
 final class SpaceNode: Identifiable, @unchecked Sendable {
     let path: String
