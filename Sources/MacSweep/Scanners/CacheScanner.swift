@@ -15,13 +15,13 @@ struct CacheScanner {
             guard !claimed.contains(url.path), FS.exists(url) else { return }
             items.append(SweepItem(id: "cache:\(url.path)", category: .caches, title: title,
                                    subtitle: FS.tilde(url), paths: [url], lastUsed: FS.mtime(url),
-                                   risk: risk, reason: reason))
+                                   risk: risk, reason: reason, iconURL: inv.appURL(forID: url.lastPathComponent)))
         }
 
         for c in FS.children(FS.library.appendingPathComponent("Caches")) {
             let raw = c.lastPathComponent
             let lower = raw.lowercased()
-            let name = inv.appName(forID: raw).map { "\($0)（\(raw)）" } ?? raw
+            let name = inv.appName(forID: raw) ?? raw
             if lower.hasSuffix(".shipit") || lower.contains("updater") || lower.hasSuffix("-updater") {
                 add(c, title: name, risk: .safe, reason: "软件自动更新下载的安装包残留")
             } else if lower.hasPrefix("com.apple.") {

@@ -9,77 +9,141 @@ struct OverviewView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 22) {
                 hero
                 if !store.hasFullDiskAccess { FDABanner() }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 14)], spacing: 14) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 250), spacing: 16)], spacing: 16) {
                     ForEach(Category.allCases) { c in
                         CategoryCard(category: c) { open(c) }
                     }
                 }
                 tips
             }
-            .padding(24)
+            .padding(28)
+            .padding(.bottom, 70)
         }
+        .background(Color(nsColor: .windowBackgroundColor))
         .navigationTitle("总览")
     }
 
     private var hero: some View {
-        HStack(alignment: .center, spacing: 28) {
-            ZStack {
-                Circle().stroke(.quaternary, lineWidth: 14)
-                Circle()
-                    .trim(from: 0, to: store.disk.usedFraction)
-                    .stroke(store.disk.usedFraction > 0.9 ? Color.red : .accentColor,
-                            style: StrokeStyle(lineWidth: 14, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                VStack(spacing: 2) {
-                    Text(formatBytes(store.disk.free)).font(.title2.bold().monospacedDigit())
-                    Text("可用").font(.caption).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(store.isScanning ? "正在扫描…" : "可以释放")
+                        .font(.headline).foregroundStyle(.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(formatBytes(grandTotal))
+                            .font(.rounded(52, .heavy))
+                            .foregroundStyle(LinearGradient(colors: [Color(red: 0.25, green: 0.55, blue: 1), Color(red: 0.62, green: 0.32, blue: 0.95)],
+                                                            startPoint: .leading, endPoint: .trailing))
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                        if store.isScanning { ProgressView().controlSize(.small) }
+                    }
+                    Text("其中 \(formatBytes(safeTotal)) 是「安全」项：缓存、更新残留、已合并的 worktree，删了会自动重建或随时能再下载。")
+                        .font(.callout).foregroundStyle(.secondary).lineLimit(2)
                 }
-            }
-            .frame(width: 130, height: 130)
-
-            VStack(alignment: .leading, spacing: 8) {
-                if store.isScanning {
-                    HStack { ProgressView().controlSize(.small); Text("正在扫描…").font(.title3) }
-                } else {
-                    Text("找到 \(formatBytes(grandTotal)) 可清理").font(.title.bold())
-                }
-                Text("其中 \(formatBytes(safeTotal)) 标记为「安全」：缓存、更新残留、已合并的 worktree 这类删了会自动重建或可随时重新下载的东西。")
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack {
+                Spacer(minLength: 24)
+                VStack(alignment: .trailing, spacing: 8) {
                     Button {
                         store.selectSafe()
                     } label: {
-                        Label("选中所有安全项", systemImage: "checkmark.circle")
+                        Label("选中所有安全项", systemImage: "checkmark.seal.fill")
+                            .padding(.horizontal, 6).padding(.vertical, 3)
                     }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                     .disabled(store.isScanning || safeTotal == 0)
                     if let d = store.lastScan {
-                        Text("上次扫描：\(d.formatted(date: .omitted, time: .shortened))")
-                            .font(.caption).foregroundStyle(.secondary)
+                        Text("上次扫描 \(d.formatted(date: .omitted, time: .shortened))")
+                            .font(.caption).foregroundStyle(.tertiary)
                     }
                 }
             }
-            Spacer(minLength: 0)
+
+            StorageBreakdown()
         }
-        .padding(20)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14))
+        .padding(24)
+        .card(radius: 18)
     }
 
     private var tips: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("说明").font(.headline)
-            Group {
-                Text("• 「安全」：会自动重建或随时可再下载。「需确认」：可能有你要的数据或设置。「谨慎」：可能还在用，或有未保存的工作。")
-                Text("• 所有文件都是移到废纸篓，清倒之前都能找回；空间要清倒废纸篓后才真正释放。")
-                Text("• 「卸载残留」通过对照所有已安装的软件（含 Steam 游戏、软件内的辅助程序和扩展、命令行工具）来判断，名称对不上的会标成「需确认」。")
+        VStack(alignment: .leading, spacing: 10) {
+            Text("风险等级").font(.headline)
+            HStack(alignment: .top, spacing: 14) {
+                TipCard(risk: .safe, text: "会自动重建，或随时可以重新下载。")
+                TipCard(risk: .review, text: "可能有你要的数据或设置，看一眼再删。")
+                TipCard(risk: .careful, text: "可能还在用，或有没保存的工作。")
             }
-            .font(.callout).foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+            Label("所有东西都是移到废纸篓，清倒之前都能找回。", systemImage: "arrow.uturn.backward.circle")
+                .font(.callout).foregroundStyle(.secondary)
+                .padding(.top, 4)
         }
+    }
+}
+
+/// Whole-disk bar: other used space, cleanable space per category, free space.
+struct StorageBreakdown: View {
+    @EnvironmentObject var store: Store
+
+    var body: some View {
+        let disk = store.disk
+        let total = Double(max(disk.total, 1))
+        let cleanable = Category.allCases.map { ($0, store.total($0)) }
+        let cleanSum = cleanable.reduce(Int64(0)) { $0 + $1.1 }
+        let other = max(disk.used - cleanSum, 0)
+
+        VStack(alignment: .leading, spacing: 12) {
+            SegmentBar(segments:
+                [.init(id: "other", value: Double(other) / total, fill: AnyShapeStyle(Color.primary.opacity(0.28)))]
+                + cleanable.map { .init(id: $0.0.rawValue, value: Double($0.1) / total, fill: AnyShapeStyle($0.0.gradient)) }
+                + [.init(id: "free", value: Double(disk.free) / total, fill: AnyShapeStyle(Color.primary.opacity(0.07)))],
+                height: 18)
+
+            // A grid rather than an HStack: seven fixed-width legends in one row would raise the
+            // window's minimum width.
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), alignment: .leading)], alignment: .leading, spacing: 6) {
+                LegendDot(color: AnyShapeStyle(Color.primary.opacity(0.28)), title: "其他已用", value: other)
+                ForEach(cleanable, id: \.0) { c, v in
+                    LegendDot(color: AnyShapeStyle(c.gradient), title: c.title, value: v)
+                }
+                LegendDot(color: AnyShapeStyle(Color.primary.opacity(0.07)), title: "可用", value: disk.free)
+            }
+            .font(.caption)
+        }
+    }
+}
+
+struct LegendDot: View {
+    let color: AnyShapeStyle
+    let title: String
+    let value: Int64
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 8, height: 8)
+                .overlay(Circle().strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
+            Text(title).foregroundStyle(.secondary)
+            Text(formatBytes(value)).monospacedDigit()
+        }
+        .lineLimit(1)
+        .fixedSize()
+    }
+}
+
+struct TipCard: View {
+    let risk: Risk
+    let text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            RiskBadge(risk: risk)
+            Text(text).font(.callout).foregroundStyle(.secondary).lineLimit(3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .card(radius: 12)
     }
 }
 
@@ -87,31 +151,55 @@ struct CategoryCard: View {
     let category: Category
     let action: () -> Void
     @EnvironmentObject var store: Store
+    @State private var hover = false
 
     var body: some View {
+        let total = store.total(category)
+        let safe = store.safeTotal(category)
+
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Image(systemName: category.icon).font(.title2).foregroundStyle(.tint)
+                    IconTile(category, size: 40)
                     Spacer()
-                    if store.scanning.contains(category) { ProgressView().controlSize(.small) }
-                }
-                Text(category.title).font(.headline)
-                Text(formatBytes(store.total(category))).font(.title.bold().monospacedDigit())
-                HStack(spacing: 10) {
-                    Text("\(store.items(category).count) 项").foregroundStyle(.secondary)
-                    if store.safeTotal(category) > 0 {
-                        Text("安全 \(formatBytes(store.safeTotal(category)))").foregroundStyle(.green)
+                    if store.scanning.contains(category) {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.bold)).foregroundStyle(.tertiary)
                     }
                 }
-                .font(.caption)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(category.title).font(.headline)
+                    Text(formatBytes(total))
+                        .font(.rounded(30))
+                        .monospacedDigit()
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Capsule().fill(Color.primary.opacity(0.07)).frame(height: 6)
+                        .overlay(alignment: .leading) {
+                            GeometryReader { g in
+                                Capsule().fill(category.gradient)
+                                    .frame(width: total > 0 ? max(6, g.size.width * CGFloat(Double(safe) / Double(total))) : 0)
+                            }
+                        }
+                    HStack {
+                        Text("\(store.items(category).count) 项")
+                        Spacer()
+                        Text(safe > 0 ? "安全 \(formatBytes(safe))" : "无安全项")
+                            .foregroundStyle(safe > 0 ? category.tint : Color.secondary)
+                    }
+                    .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
-            .contentShape(RoundedRectangle(cornerRadius: 12))
+            .padding(18)
+            .card(radius: 16)
+            .scaleEffect(hover ? 1.015 : 1)
+            .animation(.spring(duration: 0.25), value: hover)
+            .contentShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
+        .onHover { hover = $0 }
     }
 }
 
@@ -121,28 +209,42 @@ struct LogView: View {
     var body: some View {
         Group {
             if store.log.isEmpty {
-                ContentUnavailableView("还没有清理记录", systemImage: "list.bullet.rectangle")
+                ContentUnavailableView("还没有清理记录", systemImage: "list.bullet.rectangle",
+                                       description: Text("清理过的项目会记在这里"))
             } else {
-                List(store.log) { e in
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: e.ok ? "checkmark.circle.fill" : "xmark.octagon.fill")
-                            .foregroundStyle(e.ok ? .green : .red)
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack {
-                                Text(e.title).bold()
-                                Spacer()
-                                if e.freed > 0 { Text(formatBytes(e.freed)).monospacedDigit().foregroundStyle(.secondary) }
-                                Text(e.date.formatted(date: .omitted, time: .standard)).font(.caption).foregroundStyle(.tertiary)
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(store.log.enumerated()), id: \.element.id) { i, e in
+                            if i > 0 { Divider().padding(.leading, 50) }
+                            HStack(alignment: .top, spacing: 12) {
+                                Image(systemName: e.ok ? "checkmark.circle.fill" : "xmark.octagon.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(e.ok ? .green : .red)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack {
+                                        Text(e.title).font(.body.weight(.medium))
+                                        Spacer()
+                                        if e.freed > 0 {
+                                            Text(formatBytes(e.freed)).font(.rounded(14, .semibold)).monospacedDigit()
+                                        }
+                                        Text(e.date.formatted(date: .omitted, time: .standard))
+                                            .font(.caption).foregroundStyle(.tertiary)
+                                    }
+                                    if !e.detail.isEmpty {
+                                        Text(e.detail).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                                    }
+                                }
                             }
-                            if !e.detail.isEmpty {
-                                Text(e.detail).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
-                            }
+                            .padding(12)
                         }
                     }
-                    .padding(.vertical, 3)
+                    .padding(6)
+                    .card()
+                    .padding(28)
                 }
             }
         }
+        .background(Color(nsColor: .windowBackgroundColor))
         .navigationTitle("清理记录")
     }
 }

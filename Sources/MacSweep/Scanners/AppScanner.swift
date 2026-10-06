@@ -39,7 +39,7 @@ struct AppScanner {
 
             return SweepItem(id: "app:\(app.url.path)", category: .apps, title: app.name,
                              subtitle: FS.tilde(app.url), paths: [app.url] + data,
-                             lastUsed: used, risk: risk, reason: reason)
+                             lastUsed: used, risk: risk, reason: reason, iconURL: app.url)
         }
         // Steam/Epic game stubs and aliases are a few KB; not worth listing.
         return await FS.sized(items, min: 2 << 20).sorted { $0.lastUsedSort < $1.lastUsedSort }

@@ -1,108 +1,198 @@
 import SwiftUI
 
+enum SortKey: String, CaseIterable, Identifiable {
+    case size = "按大小"
+    case age = "按最后使用"
+    case name = "按名称"
+    var id: String { rawValue }
+}
+
 struct CategoryView: View {
     let category: Category
     @EnvironmentObject var store: Store
     @State private var riskFilter: Risk? = nil
     @State private var search = ""
-    @State private var sortOrder = [KeyPathComparator(\SweepItem.size, order: .reverse)]
+    @State private var sort: SortKey = .size
+
+    private var all: [SweepItem] { store.items(category) }
 
     private var rows: [SweepItem] {
-        store.items(category)
+        let filtered = all
             .filter { riskFilter == nil || $0.risk == riskFilter }
             .filter { search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) || $0.subtitle.localizedCaseInsensitiveContains(search) }
-            .sorted(using: sortOrder)
+        switch sort {
+        case .size: return filtered.sorted { $0.size > $1.size }
+        case .age: return filtered.sorted { $0.lastUsedSort < $1.lastUsedSort }
+        case .name: return filtered.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header.padding(16)
-            Divider()
-            if store.scanning.contains(category) {
-                ProgressView("正在扫描…").frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if rows.isEmpty {
-                ContentUnavailableView(search.isEmpty ? "这里很干净" : "没有匹配项",
-                                       systemImage: search.isEmpty ? "sparkles" : "magnifyingglass",
-                                       description: Text(search.isEmpty ? "没有找到可清理的项目" : "换个关键词试试"))
-            } else {
-                table
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                header
+                if category == .orphans && !store.hasFullDiskAccess { FDABanner() }
+                controls
+                content
             }
+            .padding(.horizontal, 28)
+            .padding(.top, 22)
+            .padding(.bottom, 90) // room for the floating clean bar
         }
+        .background(Color(nsColor: .windowBackgroundColor))
         .navigationTitle(category.title)
         .searchable(text: $search, placement: .toolbar, prompt: "搜索名称或路径")
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Label(category.title, systemImage: category.icon).font(.title2.bold())
-                Spacer()
-                Text(formatBytes(store.total(category))).font(.title2.monospacedDigit()).foregroundStyle(.secondary)
+        HStack(alignment: .center, spacing: 16) {
+            IconTile(category, size: 56)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(category.title).font(.rounded(26))
+                // No fixedSize: NavigationSplitView measures minimum height at a tiny width,
+                // where a non-compressible paragraph grows ~1000pt and breaks the window layout.
+                Text(category.blurb).font(.callout).foregroundStyle(.secondary).lineLimit(3)
             }
-            // No fixedSize here: NavigationSplitView measures its minimum height at a tiny width,
-            // where a non-compressible paragraph turns into ~1000pt and pushes the window
-            // content up under the toolbar.
-            Text(category.blurb).foregroundStyle(.secondary).lineLimit(3)
-            if category == .orphans && !store.hasFullDiskAccess {
-                FDABanner()
-            }
-            HStack {
-                Picker("风险", selection: $riskFilter) {
-                    Text("全部").tag(Risk?.none)
-                    ForEach(Risk.allCases, id: \.self) { r in
-                        Text("\(r.title) (\(store.items(category).filter { $0.risk == r }.count))").tag(Risk?.some(r))
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 380)
-                Spacer()
-                Button("全选安全项") { store.selectSafe(in: [category]) }
-                Button("全不选") { store.deselect(in: category) }
+            Spacer(minLength: 20)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(formatBytes(store.total(category)))
+                    .font(.rounded(30))
+                    .foregroundStyle(category.gradient)
+                    .monospacedDigit()
+                Text("\(all.count) 项").font(.caption).foregroundStyle(.secondary)
             }
         }
     }
 
-    private var table: some View {
-        Table(rows, sortOrder: $sortOrder) {
-            TableColumn("") { item in
-                Toggle("", isOn: store.binding(item.id))
-                    .toggleStyle(.checkbox)
-                    .labelsHidden()
-            }
-            .width(20)
-
-            TableColumn("项目", value: \.title) { item in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title).lineLimit(1)
-                    Text(item.subtitle).font(.caption).foregroundStyle(.secondary)
-                        .lineLimit(1).truncationMode(.middle)
+    private var controls: some View {
+        HStack(spacing: 8) {
+            FilterChip(title: "全部", count: all.count, color: .accentColor, on: riskFilter == nil) { riskFilter = nil }
+            ForEach(Risk.allCases, id: \.self) { r in
+                FilterChip(title: r.title, count: all.filter { $0.risk == r }.count, color: r.color, on: riskFilter == r) {
+                    riskFilter = riskFilter == r ? nil : r
                 }
-                .help(item.paths.map(\.path).joined(separator: "\n"))
-                .contextMenu { ItemMenu(item: item) }
             }
-            .width(min: 180, ideal: 280)
-
-            TableColumn("大小", value: \.size) { item in
-                Text(formatBytes(item.size)).monospacedDigit()
+            Spacer()
+            Menu {
+                Picker("排序", selection: $sort) {
+                    ForEach(SortKey.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Label(sort.rawValue, systemImage: "arrow.up.arrow.down")
             }
-            .width(min: 70, ideal: 80)
-
-            TableColumn("最后使用/修改", value: \.lastUsedSort) { item in
-                Text(formatAge(item.lastUsed)).foregroundStyle(.secondary)
-            }
-            .width(min: 80, ideal: 100)
-
-            TableColumn("风险", value: \.risk) { item in
-                RiskBadge(risk: item.risk)
-            }
-            .width(60)
-
-            TableColumn("说明") { item in
-                Text(item.reason).font(.callout).foregroundStyle(.secondary).lineLimit(2)
-                    .help(item.reason)
-            }
-            .width(min: 160, ideal: 320)
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .padding(.trailing, 6)
+            Button("全选安全项") { store.selectSafe(in: [category]) }
+                .disabled(all.allSatisfy { $0.risk != .safe })
+            Button("全不选") { store.deselect(in: category) }
         }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if store.scanning.contains(category) {
+            VStack(spacing: 12) {
+                ProgressView().controlSize(.large)
+                Text("正在扫描…").foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity).padding(.vertical, 80)
+        } else if rows.isEmpty {
+            ContentUnavailableView(search.isEmpty ? "这里很干净" : "没有匹配项",
+                                   systemImage: search.isEmpty ? "sparkles" : "magnifyingglass",
+                                   description: Text(search.isEmpty ? "没有找到可清理的项目" : "换个关键词试试"))
+                .padding(.vertical, 60)
+        } else {
+            let maxSize = max(rows.map(\.size).max() ?? 1, 1)
+            LazyVStack(spacing: 0) {
+                ForEach(Array(rows.enumerated()), id: \.element.id) { i, item in
+                    if i > 0 { Divider().padding(.leading, 96) }
+                    ItemRow(item: item, maxSize: maxSize, isOn: store.binding(item.id))
+                }
+            }
+            .padding(6)
+            .card()
+        }
+    }
+}
+
+struct FilterChip: View {
+    let title: String
+    let count: Int
+    let color: Color
+    let on: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Text(title)
+                Text("\(count)")
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .padding(.horizontal, 5).padding(.vertical, 1)
+                    .background((on ? Color.white : color).opacity(on ? 0.25 : 0.15), in: Capsule())
+            }
+            .font(.callout.weight(.medium))
+            .padding(.horizontal, 11).padding(.vertical, 5)
+            .foregroundStyle(on ? Color.white : Color.primary)
+            .background(on ? AnyShapeStyle(color) : AnyShapeStyle(Color.primary.opacity(0.06)), in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .opacity(count == 0 && !on ? 0.45 : 1)
+    }
+}
+
+struct ItemRow: View {
+    let item: SweepItem
+    let maxSize: Int64
+    @Binding var isOn: Bool
+    @State private var hover = false
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Toggle("", isOn: $isOn).toggleStyle(.checkbox).labelsHidden()
+            ItemIcon(item: item)
+                .frame(width: 40)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text(item.title).font(.body.weight(.medium)).lineLimit(1)
+                    RiskBadge(risk: item.risk)
+                }
+                Text(item.reason)
+                    .font(.callout).foregroundStyle(.secondary)
+                    .lineLimit(2)
+                Text(item.subtitle)
+                    .font(.caption).foregroundStyle(.tertiary)
+                    .lineLimit(1).truncationMode(.middle)
+            }
+            Spacer(minLength: 16)
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(formatBytes(item.size))
+                    .font(.rounded(15, .semibold)).monospacedDigit()
+                Capsule()
+                    .fill(Color.primary.opacity(0.08))
+                    .frame(width: 96, height: 5)
+                    .overlay(alignment: .leading) {
+                        Capsule()
+                            .fill(item.category.gradient)
+                            .frame(width: max(5, 96 * CGFloat(Double(item.size) / Double(maxSize))), height: 5)
+                    }
+                Text(formatAge(item.lastUsed)).font(.caption).foregroundStyle(.secondary)
+            }
+            .frame(width: 110, alignment: .trailing)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(isOn ? item.category.tint.opacity(0.12) : hover ? Color.primary.opacity(0.04) : .clear)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { isOn.toggle() }
+        .onHover { hover = $0 }
+        .help(item.paths.map(\.path).joined(separator: "\n"))
+        .contextMenu { ItemMenu(item: item) }
     }
 }
 
@@ -119,39 +209,30 @@ struct ItemMenu: View {
     }
 }
 
-struct RiskBadge: View {
-    let risk: Risk
-
-    var body: some View {
-        Text(risk.title)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 7).padding(.vertical, 2)
-            .foregroundStyle(risk.color)
-            .background(risk.color.opacity(0.15), in: Capsule())
-    }
-}
-
 struct FDABanner: View {
     @EnvironmentObject var store: Store
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "lock.shield").foregroundStyle(.orange).font(.title3)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("没有完全磁盘访问权限").font(.callout.bold())
-                Text("其他软件的 Containers、废纸篓、下载、文稿受 macOS 隐私保护，目前跳过不扫。在设置里把 MacSweep 打开即可，授权一次永久有效，回到这里会自动重新扫描。")
-                    .font(.callout).foregroundStyle(.secondary)
+        HStack(alignment: .center, spacing: 14) {
+            IconTile(symbol: "lock.shield.fill",
+                     gradient: LinearGradient(colors: [.orange, .red.opacity(0.85)], startPoint: .top, endPoint: .bottom),
+                     size: 36)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("需要完全磁盘访问权限").font(.headline)
+                Text("其他软件的 Containers、废纸篓、下载、文稿受 macOS 隐私保护，目前跳过不扫。授权一次永久有效，回到这里会自动重新扫描。")
+                    .font(.callout).foregroundStyle(.secondary).lineLimit(3)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
                 Button("打开设置") { store.openFullDiskAccessSettings() }
+                    .buttonStyle(.borderedProminent)
                 Button("在访达中显示 MacSweep") {
                     NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
                 }
                 .buttonStyle(.link).font(.caption)
             }
         }
-        .padding(10)
-        .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .padding(14)
+        .card()
     }
 }

@@ -81,6 +81,8 @@ struct SweepItem: Identifiable, Hashable {
     var risk: Risk
     var reason: String
     var action: CleanAction = .trash
+    /// File whose Finder icon represents the item (an app bundle, usually).
+    var iconURL: URL? = nil
 
     var lastUsedSort: Date { lastUsed ?? .distantPast }
 }

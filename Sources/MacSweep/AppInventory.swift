@@ -14,6 +14,7 @@ final class AppInventory: @unchecked Sendable {
     private(set) var bundleIDs: Set<String> = []        // lowercased
     private(set) var names: Set<String> = []            // normalized app/tool/vendor names
     private(set) var appNameByID: [String: String] = [:] // lowercased id -> display name
+    private(set) var appURLByID: [String: URL] = [:]     // lowercased id -> bundle URL
 
     static func normalize(_ s: String) -> String {
         s.lowercased().filter { $0.isLetter || $0.isNumber }
@@ -78,7 +79,10 @@ final class AppInventory: @unchecked Sendable {
         if let id = b.bundleIdentifier {
             let lid = id.lowercased()
             bundleIDs.insert(lid)
-            if depth == 0 { appNameByID[lid] = appNameByID[lid] ?? display }
+            if depth == 0 {
+                appNameByID[lid] = appNameByID[lid] ?? display
+                appURLByID[lid] = appURLByID[lid] ?? url
+            }
             let parts = lid.split(separator: ".")
             if parts.count >= 2 { addName(String(parts[1])) } // vendor, e.g. "google" for com.google.Chrome
         }
@@ -97,6 +101,13 @@ final class AppInventory: @unchecked Sendable {
         let k = key.lowercased()
         if let n = appNameByID[k] { return n }
         return appNameByID.first { k.hasPrefix($0.key + ".") }?.value
+    }
+
+    /// Bundle URL of the installed app owning a bundle-ID-like key, for its icon.
+    func appURL(forID key: String) -> URL? {
+        let k = key.lowercased()
+        if let u = appURLByID[k] { return u }
+        return appURLByID.first { k.hasPrefix($0.key + ".") }?.value
     }
 
     func owns(bundleID key: String) -> Bool {
