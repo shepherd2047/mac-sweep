@@ -64,3 +64,24 @@ enum AccessCheck {
         exit(0)
     }
 }
+
+/// `open MacSweep.app --args --space <out>`: runs the space analysis with the app's own
+/// permissions and writes the breakdown to a text file.
+enum SpaceDump {
+    static func run(out: String) -> Never {
+        let start = Date()
+        let r = SpaceAnalysis.run(progress: SpaceScanner.Progress())
+        var lines = [String(format: "took %.1fs, %d files", Date().timeIntervalSince(start), r.scannedFiles),
+                     "container total \(formatBytes(r.container.total)) free \(formatBytes(r.container.free))"]
+        for v in r.container.volumes { lines.append("  vol \(v.role) \(v.name) \(formatBytes(v.used))") }
+        for b in Bucket.allCases { lines.append("\(b.title): \(formatBytes(r.total(b)))") }
+        for o in r.owners(in: Set(Bucket.allCases)).prefix(120) {
+            lines.append("\n\(formatBytes(o.total).padding(toLength: 10, withPad: " ", startingAt: 0)) [\(o.bucket.title)] \(o.name)")
+            for p in o.parts.sorted(by: { $0.size > $1.size }).prefix(6) {
+                lines.append("      \(formatBytes(p.size).padding(toLength: 10, withPad: " ", startingAt: 0)) \(p.label)  \(p.path ?? "")")
+            }
+        }
+        try? lines.joined(separator: "\n").write(toFile: out, atomically: true, encoding: .utf8)
+        exit(0)
+    }
+}

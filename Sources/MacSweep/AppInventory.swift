@@ -15,6 +15,7 @@ final class AppInventory: @unchecked Sendable {
     private(set) var names: Set<String> = []            // normalized app/tool/vendor names
     private(set) var appNameByID: [String: String] = [:] // lowercased id -> display name
     private(set) var appURLByID: [String: URL] = [:]     // lowercased id -> bundle URL
+    private(set) var appIDByName: [String: String] = [:] // normalized display/bundle name -> lowercased id
 
     static func normalize(_ s: String) -> String {
         s.lowercased().filter { $0.isLetter || $0.isNumber }
@@ -82,6 +83,11 @@ final class AppInventory: @unchecked Sendable {
             if depth == 0 {
                 appNameByID[lid] = appNameByID[lid] ?? display
                 appURLByID[lid] = appURLByID[lid] ?? url
+                for n in [display, b.object(forInfoDictionaryKey: "CFBundleName") as? String,
+                          b.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String].compactMap({ $0 }) {
+                    let k = Self.normalize(n)
+                    if k.count >= 3, appIDByName[k] == nil { appIDByName[k] = lid }
+                }
             }
             let parts = lid.split(separator: ".")
             if parts.count >= 2 { addName(String(parts[1])) } // vendor, e.g. "google" for com.google.Chrome

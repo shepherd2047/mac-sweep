@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OverviewView: View {
     let open: (Category) -> Void
+    let openSpace: () -> Void
     @EnvironmentObject var store: Store
 
     private var grandTotal: Int64 { Category.allCases.reduce(0) { $0 + store.total($1) } }
@@ -63,6 +64,10 @@ struct OverviewView: View {
             }
 
             StorageBreakdown()
+            Button(action: openSpace) {
+                Label("「其他已用」里到底是什么？按软件看每一 GB 花在哪", systemImage: "chart.pie.fill")
+            }
+            .buttonStyle(.link)
         }
         .padding(24)
         .card(radius: 18)

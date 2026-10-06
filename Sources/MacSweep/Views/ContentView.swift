@@ -2,12 +2,14 @@ import SwiftUI
 
 enum Pane: Hashable {
     case overview
+    case space
     case category(Category)
     case log
 }
 
 struct ContentView: View {
     @EnvironmentObject var store: Store
+    @EnvironmentObject var space: SpaceModel
     @State private var pane: Pane? = .overview
 
     var body: some View {
@@ -23,6 +25,10 @@ struct ContentView: View {
                                               gradient: LinearGradient(colors: [Color(red: 0.35, green: 0.6, blue: 1), Color(red: 0.6, green: 0.35, blue: 0.95)],
                                                                        startPoint: .top, endPoint: .bottom),
                                               size: 24))
+                }
+                NavigationLink(value: Pane.space) {
+                    SidebarRow(title: "空间分析", icon: IconTile(symbol: "chart.pie.fill", gradient: Bucket.apps.gradient, size: 24),
+                               loading: space.scanning)
                 }
 
                 Section("分类") {
@@ -52,7 +58,8 @@ struct ContentView: View {
                 switch pane {
                 case .category(let c): CategoryView(category: c)
                 case .log: LogView()
-                default: OverviewView(open: { pane = .category($0) })
+                case .space: SpaceView()
+                default: OverviewView(open: { pane = .category($0) }, openSpace: { pane = .space })
                 }
                 if !store.selected.isEmpty || store.cleaning {
                     CleanBar()

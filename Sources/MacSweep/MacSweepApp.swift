@@ -4,11 +4,13 @@ import SwiftUI
 @main
 struct MacSweepApp: App {
     @StateObject private var store = Store()
+    @StateObject private var space = SpaceModel()
 
     init() {
         let args = CommandLine.arguments
         if args.contains("--dump") { Dump.run() }
         if let i = args.firstIndex(of: "--check-access"), i + 1 < args.count { AccessCheck.run(out: args[i + 1]) }
+        if let i = args.firstIndex(of: "--space"), i + 1 < args.count { SpaceDump.run(out: args[i + 1]) }
         // Lets `swift run` show a normal window with a Dock icon.
         NSApplication.shared.setActivationPolicy(.regular)
     }
@@ -17,6 +19,7 @@ struct MacSweepApp: App {
         WindowGroup("MacSweep") {
             ContentView()
                 .environmentObject(store)
+                .environmentObject(space)
                 .frame(minWidth: 860, minHeight: 560)
                 .onAppear { NSApp.activate(ignoringOtherApps: true) }
         }
